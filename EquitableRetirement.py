@@ -132,7 +132,7 @@ class EquitableRetirement:
         model.RETEF = pe.Param(model.C,initialize=a2d(self.Params.RETEF,self.C), doc="Retirement EF for each coal plant (will most likely be a single static value)")
         model.CONEF = pe.Param(model.R,model.Y,initialize=a2d(self.Params.CONEF,self.R,self.Y),doc="Construction/installation EFs for RE plants")
         model.COALOMEF = pe.Param(model.C,initialize=a2d(self.Params.COALOMEF,self.C),doc="O&M EF for coal plants (will be most likely be a static value as well)")
-        model.REOMEF = pe.Param(model.R,model.Y,initialize=a2d(self.Params.REOMEF,self.R,self.Y),doc="O&M EF for RE plants")
+        model.REOMEF = pe.Param(model.R,model.Y,initialize=a2d(self.Params.REOMEF,self.R,self.Y),doc="O&M EF for RE plants jobs/MW")
         
         # variables: Total number of decision variables is defined by multiplying the sets provided upfront.
         model.capInvest = pe.Var(model.R,model.C,model.Y,within=pe.NonNegativeReals, doc = "Capacity to be invested in that renewable plant to replace coal")   # For each Y, for each C, for each R there is a capInvest decision variable.
@@ -160,7 +160,7 @@ class EquitableRetirement:
             #first coal retire + coal operation then + RE construction + RE O&M
             return sum(sum(model.RETEF[c]*model.capRetire[c,y] for c in model.C) for y in model.Y) \
                 + sum(sum(model.COALOMEF[c]*model.coalGen[c,y] for c in model.C) for y in model.Y) \
-                + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reGen[r,c,y] for c in model.C) for r in model.R) for y in model.Y)
+                + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reCap[r,c,y] for c in model.C) for r in model.R) for y in model.Y) # reGen changed to reCap in alignment with the unit analysis behind jobs/MW versus jobs/MWh. MV 08092021
 
         def Z(model):
             return alpha*SystemCosts(model) + beta*HealthCosts(model) - gamma*Jobs(model)
@@ -176,7 +176,7 @@ class EquitableRetirement:
         model.balanceGenRule = pe.Constraint(model.C,model.Y,rule=balanceGenRule, doc = "RE generation for each coal location must equal retired capacity")
 
         def reGenRule(model,r,c,y):
-            return model.reGen[r,c,y] <= model.CF[r]*model.reCap[r,c,y]*8760
+            return model.reGen[r,c,y] == model.CF[r]*model.reCap[r,c,y]*8760 # changed to equality based on conversation to test: MV 08102021
         model.reGenRule = pe.Constraint(model.R,model.C,model.Y,rule=reGenRule, doc='RE generation must be less than or equal to capacity factor* chosen capacity *8760')
 
         def reCapRule(model,r,c,y):
