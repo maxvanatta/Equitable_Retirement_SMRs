@@ -7,7 +7,7 @@ Created on Tue May 11 09:03:40 2021
 from EquitableRetirement import EquitableRetirement
 import CoalPlants
 import RenewableSites
-from getREefs import batchReEFs
+from getReEFs import batchReEFs
 
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
         SMR_num = 0
     RE_num = len(reSites) - SMR_num
     
-    costs = { 'RECAPEX' : np.array([1600000]*(RE_num//2) + [1700000]*(RE_num//2) + [2616000]*(SMR_num)),
+    costs = { 'RECAPEX' : np.array([1600000]*(RE_num//2) + [1700000]*(RE_num//2) + [2526000]*(SMR_num)),
               'REFOPEX' : np.array([19000]*(RE_num//2) + [43000]*(RE_num//2) + [25000]*(SMR_num)),
               'REVOPEX' : np.array([0]*(RE_num//2) + [0]*(RE_num//2) + [9.46]*(SMR_num)),
               'COALVOPEX' : np.ones(len(plants))*(4.+11*2.2),
@@ -59,9 +59,9 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
         # }
     
     ef = { 'RETEF' : np.ones(len(plants))*1.65,
-           'CONEF' : np.reshape(CONEF,(len(reSites),numYears)),
+           'CONEF' : np.reshape(CONEF,(len(reSites),numYears),order='F'),
            'COALOMEF' : np.ones(len(plants))* (plants['Coal Capacity (MW)'].values*0.14/plants['HISTGEN'].values), 
-           'REOMEF' : np.reshape(REOMEF,(len(reSites),numYears))
+           'REOMEF' : np.reshape(REOMEF,(len(reSites),numYears),order='F')
         }
     
     ### BUILD MODEL
