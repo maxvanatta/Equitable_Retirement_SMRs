@@ -1,12 +1,12 @@
 # Equitable_Retirement_SMRs
-This is the updated Equitable Retirement project post the addition of the SMRs.  More to come (MV 8/3/2021)
+Code and resources for equitable retirement of coal plants to renewables and SMRs building upon work from ijbd, julflores000, CodeSmith92, and rathod-b
 
 # Introduction:
 Download all .py files included in this Repo including:
-- main.py : This file sets up the optimization objects and includes the cost values! (From ijbd, julflore000, Bhavesh Rathod, Dylan Smith)
-- CoalPlants.py : This file sets up the coal plants (From ijbd, julflore000, Bhavesh Rathod, Dylan Smith)
-- stateAbrevationsMap.py : (From ijbd, julflore000, Bhavesh Rathod, Dylan Smith)
-- RenewableSites.py : This file sets up the renewable  (From ijbd, julflore000, Bhavesh Rathod, Dylan Smith)
+- main.py : This file sets up the optimization objects and includes the cost values! (From ijbd, julflore000, rathod-b, CodeSmith92)
+- CoalPlants.py : This file sets up the coal plants (From ijbd, julflore000, rathod-b, CodeSmith92)
+- stateAbrevationsMap.py : (From ijbd, julflore000, rathod-b, CodeSmith92)
+- RenewableSites.py : This file sets up the renewable  (From ijbd, julflore000, rathod-b, CodeSmith92)
 - getCoalEFs : Updated by julflore000
 - getReEFs.py : Updated by julflore000
 - EquitableRetirement.py : This file is where the optimization, objective, constraints, etc exists. Updated from version by ijbd, julflore000, Bhavesh Rathod, Dylan Smith by MaxV.
