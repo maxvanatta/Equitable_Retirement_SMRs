@@ -125,10 +125,10 @@ def PrepareModel(numYears,region,threshDist,SMR_bool, getNewEFs = False):
 def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName):
     
     obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool)
-    SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,prints = True)
+    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,prints = True)
     PostProcess(obj,numYears,region,coalPlants,reSites,[scen[0],scen[1],scen[2]], SMR_bool,folderName)
     
-    return obj, model
+    return obj, model, df
 # Function Definitions for the adaptive optimization
 
 
@@ -246,8 +246,8 @@ def InitialValues(A_MIN =0, A_MAX=1, B_MIN=0, B_MAX=1, G_MIN=0, G_MAX=1, a_steps
     return output_list
 
 def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName, prints = False):
-    os.chdir(folderName)
-    FileWrite = open('Objective_Record_'+str(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','a+')
+    #os.chdir(folderName)
+    FileWrite = open('Objective_Record_'+str(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','w')
 
     if prints == True:
         print('System cost component:')
@@ -324,11 +324,137 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         print('\nSum of objective components = {}'.format(round(objS)))
     FileWrite.write('\nSum of objective components = {}'.format(round(objS)))
     FileWrite.close()
-    os.chdir('..')
+    #os.chdir('..')
     
+    # NEW 8242021 MV to sum up the generation and capacities.
+    CoalRet = pd.DataFrame(model.Output.coalRetire)
+    CoalCapSeries = pd.Series(model.Params.COALCAP)
+    TotalCoalCap = CoalCapSeries.sum()
+
+    CoalGenSeries = pd.Series(model.Params.HISTGEN)
+    TotalCoalGen = CoalGenSeries.sum()
+
+    CoalCap = pd.DataFrame()
+    CoalGen = pd.DataFrame()
+    n = 0
+    while n < numYears:
+        CoalCap[n] = CoalCapSeries
+        CoalGen[n] = CoalGenSeries
+        n+=1
+    CoalRetire = CoalRet*CoalCap
+    CoalRetireGen = CoalRet*CoalGen
+
+    CoalRetireSums = CoalRetire.sum(axis=0).tolist()
+    CoalRetireSUM = sum(CoalRetireSums)
+    CoalRetireGenSums = CoalRetireGen.sum(axis=0).tolist()
+    CoalRetireGenSUM = sum(CoalRetireGenSums)
+
+
+    ActiveCoal = []
+    for c in CoalRetireSums:
+        if len(ActiveCoal) == 0:
+            ActiveCoal.append(TotalCoalCap-c)
+        else:
+            ActiveCoal.append(ActiveCoal[-1]-c)
+
+    ActiveCoalGen = []  
+    for c in CoalRetireGenSums:
+        if len(ActiveCoalGen) == 0:
+            ActiveCoalGen.append(TotalCoalGen-c)
+        else:
+            ActiveCoalGen.append(ActiveCoalGen[-1]-c)
+
+    #print(TotalCoalCap,'MW')
+    #print(TotalCoalGen,'MWh')
+    #print(ActiveCoal)
+    #print(ActiveCoalGen)  # END VALUE
+
+    # Solar THIS IS TOTAL RENEWABLES RIGHT NOW
+
+    #print('Solar')
+    if SMR_bool == True:
+        SMR_num = plants.index.size 
+    else: 
+        SMR_num = 0
+    RE_num = len(reSites) - SMR_num
+
+    #print(model.Output.reGen.shape)
+    SolarGen = model.Output.reGen[:int(RE_num/2)]
+    SolarCap = model.Output.reGen[:int(RE_num/2)]
+    #print(Solar.shape)
+
+    solarGen_axis0 = np.sum(SolarGen,axis = 1) # Gets each site with three years
+    solarGen_axis02 = np.sum(solarGen_axis0,axis = 0) # gets yearly total
+    #print(solarGen_axis02,'MWh')
+
+    solarCap_axis0 = np.sum(SolarCap,axis = 1) # Gets each site with three years
+    solarCap_axis02 = np.sum(solarCap_axis0,axis = 0) # gets yearly total
+    #print(solarCap_axis02,'MW')
+
+    solarCap_install = []
+    s = 0
+    while s < len(solarCap_axis02):
+        if s == 0:
+            solarCap_install.append(solarCap_axis02[s])
+        else:
+            solarCap_install.append(solarCap_axis02[s]-solarCap_axis02[s-1])
+        s+=1
+    #print(solarCap_install)
+
+    #print('Wind')
+
+    #print(model.Output.reGen.shape)
+    WindGen = model.Output.reGen[int(RE_num/2):RE_num]
+    WindCap = model.Output.reGen[int(RE_num/2):RE_num]
+    #print(WindGen.shape)
+
+    WindGen_axis0 = np.sum(WindGen,axis = 1) # Gets each site with three years
+    WindGen_axis02 = np.sum(WindGen_axis0,axis = 0) # gets yearly total
+    #print(WindGen_axis02,'MW')
+
+    WindCap_axis0 = np.sum(WindCap,axis = 1) # Gets each site with three years
+    WindCap_axis02 = np.sum(WindCap_axis0,axis = 0) # gets yearly total
+    #print(WindCap_axis02,'MW')
+
+    WindCap_install = []
+    s = 0
+    while s < len(WindCap_axis02):
+        if s == 0:
+            WindCap_install.append(WindCap_axis02[s])
+        else:
+            WindCap_install.append(WindCap_axis02[s]-WindCap_axis02[s-1])
+        s+=1
+    #print(WindCap_install)
+
+    if SMR_bool == True:
+        SMRGen = model.Output.reGen[RE_num:]
+        SMRCap = model.Output.reGen[RE_num:]
+
+        SMRGen_axis0 = np.sum(SMRGen,axis = 1) # Gets each site with three years
+        SMRGen_axis02 = np.sum(SMRGen_axis0,axis = 0) # gets yearly total
+        #print(SMRGen_axis02,'MW')
+        SMRGen_axis02 = SMRGen_axis02.tolist()
+
+        SMRCap_axis0 = np.sum(SMRCap,axis = 1) # Gets each site with three years
+        SMRCap_axis02 = np.sum(SMRCap_axis0,axis = 0) # gets yearly total
+        #print(SMRCap_axis02,'MW')
+        SMRCap_axis02 = SMRCap_axis02.tolist()
+
+        SMRCap_install = []
+        s = 0
+        while s < len(SMRCap_axis02):
+            if s == 0:
+                SMRCap_install.append(SMRap_axis02[s])
+            else:
+                SMRCap_install.append(SMRCap_axis02[s]-SMRCap_axis02[s-1])
+            s+=1
+        #print(SMRCap_install)
+    else:
+        SMRGen_axis02 = ['None']
+        SMRCap_axis02 = ['None']
     
     #'Weighted Objective','Unweighted Objective','A','B','G'
-    df = {'a':scenario[0],'b':scenario[1],'g':scenario[2],'Weighted Objective':(aC+bC+dC)*scenario[0]+hd*scenario[1]-(sumREEF+sumCoalEF)*scenario[2],'Unweighted Objective':(aC+bC+dC+hd-(sumREEF+sumCoalEF)),'A':round(aC+bC+dC,2),'B':hd,'G':(sumREEF+sumCoalEF),'Renewables':Ren_Bool,'First Year Coal Retire':Coal_first_bool}
+    df = {'a':scenario[0],'b':scenario[1],'g':scenario[2],'Weighted Objective':(aC+bC+dC)*scenario[0]+hd*scenario[1]-(sumREEF+sumCoalEF)*scenario[2],'Unweighted Objective':(aC+bC+dC+hd-(sumREEF+sumCoalEF)),'A':round(aC+bC+dC,2),'B':hd,'G':(sumREEF+sumCoalEF),'Renewables':Ren_Bool,'First Year Coal Retire':Coal_first_bool,'Total Coal Generation Start':CoalRetireGenSUM,'End Active Coal (MWh)':ActiveCoal[-1],'Yearly Active Coal (MWh)':ActiveCoal,'Yearly Active Coal Capacity (MW)':ActiveCoalGen,'Solar Capacities (MW)':solarCap_axis02.tolist(),'Solar Generation (MWh)':solarGen_axis02.tolist(),'End Solar Capacity (MW)':solarCap_axis02[-1],'Wind Capacities (MW)':WindCap_axis02.tolist(),'Wind Generation (MWh)':WindGen_axis02.tolist(),'End Wind Capacity (MW)':WindCap_axis02[-1],'SMR Capacities (MW)':SMRCap_axis02, 'SMR Generation (MWh)':SMRGen_axis02,'End SMR Capacity (MW)':SMRCap_axis02[-1]}
     return df
 
 def PostProcess(obj,numYears,region,coalPlants,reSites,scenario, SMR_bool,folderName):
