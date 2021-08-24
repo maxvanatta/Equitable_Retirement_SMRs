@@ -380,7 +380,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
 
     #print(model.Output.reGen.shape)
     SolarGen = model.Output.reGen[:int(RE_num/2)]
-    SolarCap = model.Output.reGen[:int(RE_num/2)]
+    SolarCap = model.Output.reCap[:int(RE_num/2)]
     #print(Solar.shape)
 
     solarGen_axis0 = np.sum(SolarGen,axis = 1) # Gets each site with three years
@@ -405,7 +405,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
 
     #print(model.Output.reGen.shape)
     WindGen = model.Output.reGen[int(RE_num/2):RE_num]
-    WindCap = model.Output.reGen[int(RE_num/2):RE_num]
+    WindCap = model.Output.reCap[int(RE_num/2):RE_num]
     #print(WindGen.shape)
 
     WindGen_axis0 = np.sum(WindGen,axis = 1) # Gets each site with three years
@@ -428,7 +428,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
 
     if SMR_bool == True:
         SMRGen = model.Output.reGen[RE_num:]
-        SMRCap = model.Output.reGen[RE_num:]
+        SMRCap = model.Output.reCap[RE_num:]
 
         SMRGen_axis0 = np.sum(SMRGen,axis = 1) # Gets each site with three years
         SMRGen_axis02 = np.sum(SMRGen_axis0,axis = 0) # gets yearly total

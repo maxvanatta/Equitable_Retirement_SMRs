@@ -22,7 +22,7 @@ winFileName = 'wind_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv'
 numYears = 3
 
 # Region of coal plants under analysis
-region = ['NY','PA','OH','WV','KY','TN','VA','MD','DE','NC','NJ']  #['NJ']#['DE']# 
+region = ['VA']#['NY','PA','OH','WV','KY','TN','VA','MD','DE','NC','NJ']  #['NJ']#['DE']# 
 
 # Threshold distance within which all RE investments must be located
 threshDist = 100
@@ -39,10 +39,10 @@ Results = OL.Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXC
 
 Results.to_csv('Initial_Set_SMR.csv')
 
-Steps = 0
+Steps = 2
 n = 1
 while n <= Steps:
-    Results = OL.StepDown(Results,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName, PartNumber = 2, criteria_Series = 'Unweighted Objective')
+    Results = OL.StepDown(Results,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0.20)
     Results.to_csv('Summary_'+str(region)+'_'+str(SMR_bool)+'_Level_'+str(n)+'.csv')
     n +=1
 
