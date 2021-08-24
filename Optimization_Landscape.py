@@ -133,7 +133,7 @@ def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP
 
 
 
-def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objective','A','B','G','Renewables','First Year Coal Retire']):
+def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objective','A','B','G','Renewables','First Year Coal Retire','Total Coal Generation Start','End Active Coal (MWh)','Yearly Active Coal (MWh)','Yearly Active Coal Capacity (MW)','Solar Capacities (MW)','Solar Generation (MWh)','End Solar Capacity (MW)','Wind Capacities (MW)','Wind Generation (MWh)','End Wind Capacity (MW)','SMR Capacities (MW)', 'SMR Generation (MWh)','End SMR Capacity (MW)']):
     arrays = [PDF['a'].tolist(),PDF['b'].tolist(),PDF['g'].tolist()]
     tuples = list(zip(*arrays))
     index = pd.MultiIndex.from_tuples(tuples, names=["a","b","g"])
@@ -444,7 +444,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         s = 0
         while s < len(SMRCap_axis02):
             if s == 0:
-                SMRCap_install.append(SMRap_axis02[s])
+                SMRCap_install.append(SMRCap_axis02[s])
             else:
                 SMRCap_install.append(SMRCap_axis02[s]-SMRCap_axis02[s-1])
             s+=1
