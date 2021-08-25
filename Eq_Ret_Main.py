@@ -22,7 +22,7 @@ winFileName = 'wind_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv'
 numYears = 3
 
 # Region of coal plants under analysis
-region = ['VA']#['NY','PA','OH','WV','KY','TN','VA','MD','DE','NC','NJ']  #['NJ']#['DE']# 
+region = ['NY','PA','OH','WV','KY','TN','VA','MD','DE','NC','NJ']  #['VA']#['NJ']#['DE']# 
 
 # Threshold distance within which all RE investments must be located
 threshDist = 100

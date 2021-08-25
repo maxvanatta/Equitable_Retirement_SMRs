@@ -29,6 +29,8 @@ threshDist = 100
 
 SMR_bool = False
 
+DiscRate = 0.05
+
 scen = [0,0,1]
 
 CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,getNewEFs = False)
