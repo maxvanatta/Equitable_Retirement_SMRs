@@ -60,7 +60,7 @@ class EquitableRetirement:
         self.Output = EquitableRetirement.Output()
     
     
-    def __buildModel(self,alpha,beta,gamma):
+    def __buildModel(self,alpha,beta,gamma,DiscRate):
 
         ######### helper function ##########
         
@@ -147,20 +147,20 @@ class EquitableRetirement:
         
         # objective: Combination of parameters and variables over sets.
         def SystemCosts(model):
-            return sum(sum(model.COALFOPEX[c] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)*(1.05**(y-2020)) for y in model.Y) \
-                + sum(sum(model.COALVOPEX[c] * model.coalGen[c,y] for c in model.C)*(1.05**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.REFOPEX[r] * model.reCap[r,c,y] for r in model.R) for c in model.C)*(1.05**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.RECAPEX[r] * model.capInvest[r,c,y] for r in model.R) for c in model.C)*(1.05**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.REVOPEX[r] * model.reGen[r,c,y] for r in model.R) for c in model.C)*(1.05**(y-2020)) for y in model.Y)     # __________________________
+            return sum(sum(model.COALFOPEX[c] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) \
+                + sum(sum(model.COALVOPEX[c] * model.coalGen[c,y] for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) \
+                + sum(sum(sum(model.REFOPEX[r] * model.reCap[r,c,y] for r in model.R) for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) \
+                + sum(sum(sum(model.RECAPEX[r] * model.capInvest[r,c,y] for r in model.R) for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) \
+                + sum(sum(sum(model.REVOPEX[r] * model.reGen[r,c,y] for r in model.R) for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y)     # __________________________
 
         def HealthCosts(model):
-            return sum(sum(model.HD[c]*model.coalGen[c,y] for c in model.C)*(1.15**(y-2020)) for y in model.Y)
+            return sum(sum(model.HD[c]*model.coalGen[c,y] for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y)
 
         def Jobs(model):
             #first coal retire + coal operation then + RE construction + RE O&M
-            return sum(sum(model.RETEF[c]*model.capRetire[c,y] for c in model.C) for y in model.Y) \
-                + sum(sum(model.COALOMEF[c]*model.coalGen[c,y] for c in model.C) for y in model.Y) \
-                + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reCap[r,c,y] for c in model.C) for r in model.R) for y in model.Y) # reGen changed to reCap in alignment with the unit analysis behind jobs/MW versus jobs/MWh. MV 08092021
+            return sum(sum(model.RETEF[c]*model.capRetire[c,y] for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) \
+                + sum(sum(model.COALOMEF[c]*model.coalGen[c,y] for c in model.C)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) \
+                + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reCap[r,c,y] for c in model.C) for r in model.R)*(1-(1/((1+DiscRate)**(y-2020)))) for y in model.Y) # reGen changed to reCap in alignment with the unit analysis behind jobs/MW versus jobs/MWh. MV 08092021
 
         def Z(model):
             return alpha*SystemCosts(model) + beta*HealthCosts(model) - gamma*Jobs(model)
