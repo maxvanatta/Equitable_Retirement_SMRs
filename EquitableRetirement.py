@@ -230,12 +230,12 @@ class EquitableRetirement:
         
         self.model = model
 
-    def solve(self,alpha,beta,gamma,solver='glpk'):
+    def solve(self,alpha,beta,gamma,DiscRate, solver='glpk'):
         '''solve(self,alpha,beta,gamma):
         Solve the equitable retirement optimization problem. PRECONDITION: All sets and params have been initialized.
         '''
         #rebuild model
-        self.__buildModel(alpha,beta,gamma)
+        self.__buildModel(alpha,beta,gamma,DiscRate)
 
         print('running ({},{},{})...'.format(alpha,beta,gamma))
         

@@ -33,5 +33,7 @@ scen = [0,0,1]
 
 CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,getNewEFs = False)
 
-obj, model, df = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName)
+obj, model, df = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate)
 
+OutputCSV = pd.DataFrame(df)
+OutputCSV.to_csv(folderName+'_SingleRun.csv')

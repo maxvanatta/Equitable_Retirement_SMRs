@@ -38,7 +38,7 @@ def PrepareModel(numYears,region,threshDist,SMR_bool, getNewEFs = False):
     coalPlants = plants.merge(coalData, left_on='Plant Code', right_index=True)
     coalPlants = coalPlants.drop_duplicates()
     print(coalPlants)
-    folderName = (str(region)+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(SMR_bool)+'-SMR')
+    folderName = ('_'.join(region)+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(SMR_bool)+'-SMR')
     
     reSites = RenewableSites.getAnnualCF(solFileName,winFileName)
 
@@ -782,7 +782,7 @@ def Constraints(obj,plants, numYears, reSites,coalPlants,MAXCAP,SITEMAXCAP):
                     
                     
                     
-def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName):
+def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName,DiscRate):
     temp_pd = pd.DataFrame()
     for scenario in scenarios:
         os.chdir(folderName)
@@ -793,7 +793,7 @@ def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSite
         b = scenario[1]
         g = scenario[2]
     
-        obj, plants, model = test_cplex(a,b,g,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool)
+        obj, plants, model = test_cplex(a,b,g,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
         
         
         Results_df = SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate)
