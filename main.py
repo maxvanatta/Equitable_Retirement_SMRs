@@ -14,7 +14,7 @@ import pandas as pd
 
 
 
-def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants, SITEMINCAP,SMR_bool):
+def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants, SITEMINCAP,SMR_bool,DiscRate):
     ''' use sample data to test runtime and large-scale functionality of formulation '''
     print('TEST_CPLEX:')
     print('\t','getting data...')
@@ -116,7 +116,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     '''
     print('\t','solving...')
     
-    m.solve(alp,bet,gam,solver='cplex')
+    m.solve(alp,bet,gam,DiscRate,solver='cplex')
 
     print('\t',m.Output.Z)
     

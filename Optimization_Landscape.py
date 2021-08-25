@@ -122,10 +122,10 @@ def PrepareModel(numYears,region,threshDist,SMR_bool, getNewEFs = False):
     return CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants, folderName
     
 
-def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName):
+def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate):
     
-    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool)
-    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,prints = True)
+    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
+    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,prints = True)
     PostProcess(obj,numYears,region,coalPlants,reSites,[scen[0],scen[1],scen[2]], SMR_bool,folderName)
     
     return obj, model, df
@@ -144,7 +144,7 @@ def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objec
     print(adv_PD.shape)
     return adv_PD
 
-def StepDown(pdf,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0):
+def StepDown(pdf,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0):
     ind_vals = pdf.index.values.tolist()
     
     a_vals = []
@@ -213,8 +213,8 @@ def StepDown(pdf,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEM
         print(n,'of',len(new_objectives))
         n+=1
         i,j,z = obj_vals[0],obj_vals[1], obj_vals[2]
-        obj, plants2, model = test_cplex(i,j,z,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool)
-        Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName)
+        obj, plants2, model = test_cplex(i,j,z,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
+        Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate)
         temp_pd = temp_pd.append(Results_df,ignore_index= True)
         PostProcess(obj,numYears,region,coalPlants,reSites,[i,j,z], SMR_bool,folderName)
     new_pdf_multi = MultiLevelABG(temp_pd)
@@ -245,7 +245,7 @@ def InitialValues(A_MIN =0, A_MAX=1, B_MIN=0, B_MAX=1, G_MIN=0, G_MAX=1, a_steps
                 output_list.append([a,b,g])
     return output_list
 
-def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName, prints = False):
+def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate, prints = False):
     #os.chdir(folderName)
     FileWrite = open('Objective_Record_'+str(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','w')
 
@@ -263,13 +263,13 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     dC = 0
     for y in range(numYears):
         for c in range(len(plants)):
-            aC += model.Params.COALFOPEX[c]*plants['Coal Capacity (MW)'].values[c]*obj.coalOnline[c,y] *(1.05**(y-1))
-            bC += model.Params.COALVOPEX[c]*obj.coalGen[c,y]*(1.05**(y-1))
+            aC += model.Params.COALFOPEX[c]*plants['Coal Capacity (MW)'].values[c]*obj.coalOnline[c,y]*(1-(1/((1+DiscRate)**(y-2020))))
+            bC += model.Params.COALVOPEX[c]*obj.coalGen[c,y]*(1-(1/((1+DiscRate)**(y-2020))))
             if y ==1:
                 if bC == 0:
                     Coal_first_bool = True
             for r in range(len(reSites)):
-                dC += model.Params.REFOPEX[r]*obj.reCap[r,c,y]+model.Params.RECAPEX[r]*obj.capInvest[r,c,y] + model.Params.REVOPEX[r]*obj.reGen[r,c,y] *(1.05**(y-1))
+                dC += model.Params.REFOPEX[r]*obj.reCap[r,c,y]+model.Params.RECAPEX[r]*obj.capInvest[r,c,y] + model.Params.REVOPEX[r]*obj.reGen[r,c,y] *(1-(1/((1+DiscRate)**(y-2020))))
             if dC>0:
                 Ren_Bool = True
     if prints == True:
@@ -285,7 +285,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     hd = 0
     for y in range(numYears):
         for c in range(len(plants)):
-            hd += plants['HD'].values[c]*obj.coalOnline[c,y] *(1.15**(y-1))
+            hd += plants['HD'].values[c]*obj.coalOnline[c,y]*(1-(1/((1+DiscRate)**(y-2020))))
     if prints == True:
         print('\tHealth damage sum: {}\n\tBeta = {}\n\tTotal = {}'.format(hd, scenario[1], hd*scenario[1]))
     FileWrite.write('\tHealth damage sum: {}\n\tBeta = {}\n\tTotal = {}'.format(hd, scenario[1], hd*scenario[1]))
@@ -299,7 +299,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     for y in range(numYears):
         a = 0
         for c in range(len(plants)):
-            a += model.Params.RETEF[c]*obj.capRetire[c,y]+model.Params.COALOMEF[c]*obj.coalGen[c,y]
+            a += model.Params.RETEF[c]*obj.capRetire[c,y]+model.Params.COALOMEF[c]*obj.coalGen[c,y] *(1-(1/((1+DiscRate)**(y-2020))))
         sumCoalEF += a
         
         if prints == True:
@@ -310,7 +310,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         b = 0
         for c in range(len(plants)):
             for r in range(len(reSites)):
-                b += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]+model.Params.REOMEF[r,y]*obj.reCap[r,c,y] # reGen turned to reCap to MV 08092021
+                b += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]+model.Params.REOMEF[r,y]*obj.reCap[r,c,y] *(1-(1/((1+DiscRate)**(y-2020))))# reGen turned to reCap to MV 08092021
         if prints == True:
             print('\tYear {} CONEF + REOMEF = {}.'.format(y,b))
         FileWrite.write('\n\tYear {} CONEF + REOMEF = {}.'.format(y,b))
@@ -796,7 +796,7 @@ def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSite
         obj, plants, model = test_cplex(a,b,g,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool)
         
         
-        Results_df = SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName)
+        Results_df = SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate)
         temp_pd = temp_pd.append(Results_df,ignore_index= True)
         PostProcess(obj,numYears,region,coalPlants,reSites,scenario, SMR_bool,folderName)
         
