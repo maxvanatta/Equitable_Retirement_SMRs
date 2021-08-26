@@ -41,4 +41,4 @@ os.chdir(folderName)
 w = csv.writer(open(folderName+'_SingleRun.csv', 'w'))
 for key, val in df.items():
     w.writerow([key, val])
-os.chdir(..)
+os.chdir('..')
