@@ -205,4 +205,5 @@ def batchReEFs(solarFile,windFile,year):
     CONEF = np.array(res['Con/Instl EF'])
     REOMEF = np.array(res['O&M EF'])
     
-    return CONEF, REOMEF
+    
+    return CONEF, REOMEF, res
