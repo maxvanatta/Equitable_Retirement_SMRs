@@ -35,7 +35,7 @@ DiscRate = 0.05
 
 scenarios = OL.InitialValues(a_steps = 1,b_steps = 1,g_steps = 1)
 
-CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,getNewEFs = False)
+CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,getNewEFs = False)
 
 Results = OL.Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName,DiscRate)
 

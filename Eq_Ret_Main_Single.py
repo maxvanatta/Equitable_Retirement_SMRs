@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import branca
 import branca.colormap as cm
 import os
-
+import csv
 import Optimization_Landscape as OL
 
 solFileName = 'solar_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv'
@@ -33,9 +33,12 @@ DiscRate = 0.05
 
 scen = [0,0,1]
 
-CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,getNewEFs = False)
+CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,getNewEFs = False)
 
 obj, model, df = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate)
 
-OutputCSV = pd.DataFrame(df)
-OutputCSV.to_csv(folderName+'_SingleRun.csv')
+os.chdir(folderName)
+w = csv.writer(open(folderName+'_SingleRun.csv', 'w'))
+for key, val in df.items():
+    w.writerow([key, val])
+os.chdir(..)
