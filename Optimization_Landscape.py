@@ -50,23 +50,30 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, getNewEFs = False
     
     reSitesL = list(reSites['Latitude'].astype(str)+','+reSites['Longitude'].astype(str)+','+reSites['Technology'].astype(str))
 
+    
     if getNewEFs == True:
         
     # Get construction EFs and RE O&M EFs for sites in csv files from cell above
-        CONEF,REOMEF = batchReEFs(solFileName,winFileName,numYears)
+        CONEF,REOMEF,res = batchReEFs(solFileName,winFileName,numYears)
         np.savetxt('CONEF_'+str(numYears)+'.csv', CONEF, delimiter=',')
         np.savetxt('REOMEF_'+str(numYears)+'.csv', REOMEF, delimiter=',')
     
     # OR load the information from csv files saved from prior runs for above regions/numYears to save time.
     else:
-        
-        CONEF = np.loadtxt('CONEF_'+str(numYears)+'.csv', delimiter=',')
-        REOMEF = np.loadtxt('REOMEF_'+str(numYears)+'.csv',  delimiter=',')
+        res = pd.read_csv('reEFs.csv')
+        res = res.loc[res['Year'] < (2020+numYears)]
+        CONEF = np.array(res['Con/Instl EF'])
+        REOMEF = np.array(res['O&M EF'])
+    
+    EFType = []
+    for i in res['Unnamed: 0']:
+        EFType.append(i.split(',')[-1])
     
     if SMR_bool == True:
         for index,row in coalPlants.iterrows():
             CONEF = np.append(CONEF,[1.67]*numYears)
             REOMEF = np.append(REOMEF,[0.42]*numYears)
+            EFType = np.append(EFType,['SMR']*numYears)
     
     MAXCAP = np.zeros((len(reSites),len(coalPlants)))
     SITEMAXCAP = np.zeros(len(reSites))
@@ -119,13 +126,13 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, getNewEFs = False
     
     print(folderName)
     
-    return CONEF, REOMEF, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants, folderName
+    return CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants, folderName
     
 
-def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate):
+def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate):
     
     obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
-    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,prints = True)
+    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,prints = True)
     PostProcess(obj,numYears,region,coalPlants,reSites,[scen[0],scen[1],scen[2]], SMR_bool,folderName)
     
     return obj, model, df
@@ -144,7 +151,7 @@ def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objec
     print(adv_PD.shape)
     return adv_PD
 
-def StepDown(pdf,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0):
+def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0):
     ind_vals = pdf.index.values.tolist()
     
     a_vals = []
@@ -214,7 +221,7 @@ def StepDown(pdf,CONEF, REOMEF, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEM
         n+=1
         i,j,z = obj_vals[0],obj_vals[1], obj_vals[2]
         obj, plants2, model = test_cplex(i,j,z,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
-        Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate)
+        Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType)
         temp_pd = temp_pd.append(Results_df,ignore_index= True)
         PostProcess(obj,numYears,region,coalPlants,reSites,[i,j,z], SMR_bool,folderName)
     new_pdf_multi = MultiLevelABG(temp_pd)
@@ -245,7 +252,7 @@ def InitialValues(A_MIN =0, A_MAX=1, B_MIN=0, B_MAX=1, G_MIN=0, G_MAX=1, a_steps
                 output_list.append([a,b,g])
     return output_list
 
-def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate, prints = False):
+def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType, prints = False):
     os.chdir(folderName)
     
     InputFileWrite = open('Input_Values_'+'_'.join(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','w')
@@ -438,10 +445,18 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     else: 
         SMR_num = 0
     RE_num = len(reSites) - SMR_num
-
+    SolarInds = []
+    WindInds = []
+    i = 0
+    while i < len(EFType)/numYears:
+        if EFType[i] =='S':
+            SolarInds.append(i)
+        if EFType[i] =='W':
+            WindInds.append(i)
+        i +=1
     #print(model.Output.reGen.shape)
-    SolarGen = model.Output.reGen[:int(RE_num/2)]
-    SolarCap = model.Output.reCap[:int(RE_num/2)]
+    SolarGen = model.Output.reGen[SolarInds]
+    SolarCap = model.Output.reCap[SolarInds]
     #print(Solar.shape)
 
     solarGen_axis0 = np.sum(SolarGen,axis = 1) # Gets each site with three years
@@ -465,8 +480,8 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     #print('Wind')
 
     #print(model.Output.reGen.shape)
-    WindGen = model.Output.reGen[int(RE_num/2):RE_num]
-    WindCap = model.Output.reCap[int(RE_num/2):RE_num]
+    WindGen = model.Output.reGen[WindInds]
+    WindCap = model.Output.reCap[WindInds]
     #print(WindGen.shape)
 
     WindGen_axis0 = np.sum(WindGen,axis = 1) # Gets each site with three years
