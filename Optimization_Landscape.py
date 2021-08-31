@@ -23,13 +23,11 @@ import matplotlib.pyplot as plt
 import branca
 import branca.colormap as cm
 import os
-
-# Create file name using states we pulled data for OR use data points for all states in mid-atlantic, all mid-Atlantic states eligible for RE sites in files below
-solFileName = 'solar_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv'
-winFileName = 'wind_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv'
+import warnings
+warnings.filterwarnings("ignore")
 
 
-def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, getNewEFs = False):
+def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName, winFileName, getNewEFs = False):
     plants = CoalPlants.getCoalPlants(region)
     plants['HISTGEN'] = CoalPlants.getPlantGeneration(plants['Plant Code'])
     plants['HD'] = CoalPlants.getMarginalHealthCosts(plants['Plant Code'])
@@ -38,7 +36,16 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, getNewEFs = False
     coalPlants = plants.merge(coalData, left_on='Plant Code', right_index=True)
     coalPlants = coalPlants.drop_duplicates()
     print(coalPlants)
-    folderName = ('_'.join(region)+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(SMR_bool)+'-SMR_'+str(DiscRate))
+    if region == ['AL', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']:
+        if SMR_bool == True:
+            folderName = ('ContUS'+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(DiscRate)+'_SMR_'+str(SMR_bool)+'_'+str(SMRs[0])+'_'+str(SMRs[1])+'_'+str(SMRs[2]))
+        else:
+            folderName = ('ContUS'+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(DiscRate)+'_SMR_'+str(SMR_bool))
+    else:
+        if SMR_bool == True:
+            folderName = ('_'.join(region)+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(DiscRate)+'_SMR_'+str(SMR_bool)+'_'+str(SMRs[0])+'_'+str(SMRs[1])+'_'+str(SMRs[2]))
+        else:
+            folderName = ('_'.join(region)+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(DiscRate)+'_SMR_'+str(SMR_bool))
     
     reSites = RenewableSites.getAnnualCF(solFileName,winFileName)
 
@@ -129,10 +136,10 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, getNewEFs = False
     return CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants, folderName
     
 
-def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate):
+def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMRs = [2526000,25000,9.46]):
     
-    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
-    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,prints = True)
+    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate, SMR_CAPEX = SMRs[0], SMR_FOPEX =  SMRs[1], SMR_VOPEX = SMRs[2])
+    df = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs, prints = True)
     PostProcess(obj,numYears,region,coalPlants,reSites,[scen[0],scen[1],scen[2]], SMR_bool,folderName)
     
     return obj, model, df
@@ -140,7 +147,7 @@ def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType
 
 
 
-def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objective','A','B','G','Renewables','First Year Coal Retire','Total Coal Generation Start','End Active Coal (MWh)','Yearly Active Coal (MWh)','Yearly Active Coal Capacity (MW)','Solar Capacities (MW)','Solar Generation (MWh)','End Solar Capacity (MW)','Wind Capacities (MW)','Wind Generation (MWh)','End Wind Capacity (MW)','SMR Capacities (MW)', 'SMR Generation (MWh)','End SMR Capacity (MW)','Coal O&M Cost ($)','RE Construction Cost ($)','RE O&M Cost ($)','Health Damages $','Coal Retirement Jobs (job-years)','Coal O&M Jobs (job-years)','RE O&M Jobs (job-years)','RE Construction Jobs (job-years)']):
+def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objective','A','B','G','Renewables','First Year Coal Retire','Total Coal Generation Start','End Active Coal (MWh)','Yearly Active Coal (MWh)','Yearly Active Coal Capacity (MW)','Solar Capacities (MW)','Solar Generation (MWh)','End Solar Capacity (MW)','Wind Capacities (MW)','Wind Generation (MWh)','End Wind Capacity (MW)','SMR Capacities (MW)', 'SMR Generation (MWh)','End SMR Capacity (MW)','Coal O&M Cost_Nominal ($)','RE Construction Cost_Nominal ($)','RE O&M Cost_Nominal ($)','Health Damages_Nominal $','Coal Retirement Jobs_Nominal (job-years)','Coal O&M Jobs_Nominal (job-years)','RE O&M Jobs_Nominal (job-years)','RE Construction Jobs_Nominal (job-years)','Coal O&M Cost_Discounted ($)','RE Construction Cost_Discounted ($)','RE O&M Cost_Discounted ($)','Health Damages_Discounted $','Coal Retirement Jobs_Discounted (job-years)','Coal O&M Jobs_Discounted (job-years)','RE O&M Jobs_Discounted (job-years)','RE Construction Jobs_Discounted (job-years)']):
     arrays = [PDF['a'].tolist(),PDF['b'].tolist(),PDF['g'].tolist()]
     tuples = list(zip(*arrays))
     index = pd.MultiIndex.from_tuples(tuples, names=["a","b","g"])
@@ -151,7 +158,7 @@ def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objec
     print(adv_PD.shape)
     return adv_PD
 
-def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0):
+def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0,SMRs = [2526000,25000,9.46]):
     ind_vals = pdf.index.values.tolist()
     
     a_vals = []
@@ -220,8 +227,8 @@ def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plan
         print(n,'of',len(new_objectives))
         n+=1
         i,j,z = obj_vals[0],obj_vals[1], obj_vals[2]
-        obj, plants2, model = test_cplex(i,j,z,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
-        Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType)
+        obj, plants2, model = test_cplex(i,j,z,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate, SMR_CAPEX = SMRs[0], SMR_FOPEX =  SMRs[1], SMR_VOPEX = SMRs[2])
+        Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs)
         temp_pd = temp_pd.append(Results_df,ignore_index= True)
         PostProcess(obj,numYears,region,coalPlants,reSites,[i,j,z], SMR_bool,folderName)
     new_pdf_multi = MultiLevelABG(temp_pd)
@@ -252,7 +259,7 @@ def InitialValues(A_MIN =0, A_MAX=1, B_MIN=0, B_MAX=1, G_MIN=0, G_MAX=1, a_steps
                 output_list.append([a,b,g])
     return output_list
 
-def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType, prints = False):
+def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs, prints = False):
     os.chdir(folderName)
     
     InputFileWrite = open('Input_Values_'+'_'.join(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','w')
@@ -267,12 +274,14 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     InputFileWrite.write(str(numYears)+'\n')
     InputFileWrite.write('SMR usage?:\n')
     InputFileWrite.write(str(SMR_bool)+'\n')
+    InputFileWrite.write('SMR Costs:\n')
+    InputFileWrite.write('CAPEX ($/MW): '+str(SMRs[0])+' FOPEX ($/MW): '+str(SMRs[1])+' VOPEX ($/MWh): '+str(SMRs[2])+'\n')
     InputFileWrite.write('Discount Rate:\n')
     InputFileWrite.write(str(DiscRate)+'\n')
     InputFileWrite.close()
     
     
-    FileWrite = open('Objective_Record_'+str(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','w')
+    FileWrite = open('Objective_Record_'+'_'.join(region)+'_'+str(scenario[0])+'_'+str(scenario[1])+'_'+str(scenario[2])+'_'+str(threshDist)+'_'+str(SMR_bool)+'.txt','w')
 
     if prints == True:
         print('System cost component:')
@@ -308,15 +317,15 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         b2 = 0
         
         for c in range(len(plants)):
-            aC += model.Params.COALFOPEX[c]*plants['Coal Capacity (MW)'].values[c]*obj.coalOnline[c,y]*(1-(1/((1+DiscRate)**(y))))
-            bC += model.Params.COALVOPEX[c]*obj.coalGen[c,y]*(1-(1/((1+DiscRate)**(y))))
+            aC += model.Params.COALFOPEX[c]*plants['Coal Capacity (MW)'].values[c]*obj.coalOnline[c,y]
+            bC += model.Params.COALVOPEX[c]*obj.coalGen[c,y]
             if y ==1:
                 if bC == 0:
                     Coal_first_bool = True
             for r in range(len(reSites)):
                 
-                RECons += model.Params.RECAPEX[r]*obj.capInvest[r,c,y]*(1-(1/((1+DiscRate)**(y))))
-                REOM +=  (model.Params.REFOPEX[r]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r]*obj.reGen[r,c,y]) *(1-(1/((1+DiscRate)**(y))))
+                RECons += model.Params.RECAPEX[r]*obj.capInvest[r,c,y]
+                REOM +=  (model.Params.REFOPEX[r]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r])
                 
             if dC>0:
                 Ren_Bool = True
@@ -340,7 +349,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     for y in range(numYears):
         h = 0
         for c in range(len(plants)):
-            h += plants['HD'].values[c]*obj.coalOnline[c,y]*(1-(1/((1+DiscRate)**(y))))
+            h += plants['HD'].values[c]*obj.coalOnline[c,y]
         hd += h
         HealthObj.append(h)
     if prints == True:
@@ -356,8 +365,8 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         C_OM = 0
         C_RET = 0
         for c in range(len(plants)):
-            C_RET += model.Params.RETEF[c]*obj.capRetire[c,y] *(1-(1/((1+DiscRate)**(y))))
-            C_OM += +model.Params.COALOMEF[c]*obj.coalGen[c,y] *(1-(1/((1+DiscRate)**(y))))
+            C_RET += model.Params.RETEF[c]*obj.capRetire[c,y]
+            C_OM += +model.Params.COALOMEF[c]*obj.coalGen[c,y]
         
         a = C_RET+C_OM
         JobsCoalRet.append(C_RET)
@@ -374,8 +383,8 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         RE_OM = 0
         for c in range(len(plants)):
             for r in range(len(reSites)):
-                RE_Cap += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]*(1-(1/((1+DiscRate)**(y))))
-                RE_OM += model.Params.REOMEF[r,y]*obj.reCap[r,c,y] *(1-(1/((1+DiscRate)**(y))))# reGen turned to reCap to MV 08092021
+                RE_Cap += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
+                RE_OM += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]# reGen turned to reCap to MV 08092021
         b = RE_Cap + RE_OM       
         if prints == True:
             print('\tYear {} CONEF + REOMEF = {}.'.format(y,b))
@@ -528,9 +537,29 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     else:
         SMRGen_axis02 = ['None']
         SMRCap_axis02 = ['None']
+        
+    # applying the discoutning to the summarized results
+    
+    CostCoalOM_Disc = []
+    CostRECons_Disc = []
+    CostREOM_Disc = []
+    HealthObj_Disc = []
+    JobsCoalRet_Disc = []
+    JobsCoalOM_Disc = []
+    JobsREOM_Disc = []
+    JobsRECONS_Disc = []
+    for yr in range(numYears):
+        CostCoalOM_Disc.append(CostCoalOM[yr]/((1+DiscRate)**yr))
+        CostRECons_Disc.append(CostRECons[yr]/((1+DiscRate)**yr))
+        CostREOM_Disc.append(CostREOM[yr]/((1+DiscRate)**yr))
+        HealthObj_Disc.append(HealthObj[yr]/((1+DiscRate)**yr))
+        JobsCoalRet_Disc.append(JobsCoalRet[yr]/((1+DiscRate)**yr))
+        JobsCoalOM_Disc.append(JobsCoalOM[yr]/((1+DiscRate)**yr))
+        JobsREOM_Disc.append(JobsREOM[yr]/((1+DiscRate)**yr))
+        JobsRECONS_Disc.append(JobsRECONS[yr]/((1+DiscRate)**yr))
     
     #'Weighted Objective','Unweighted Objective','A','B','G'
-    df = {'a':scenario[0],'b':scenario[1],'g':scenario[2],'Weighted Objective':(aC+bC+dC)*scenario[0]+hd*scenario[1]-(sumREEF+sumCoalEF)*scenario[2],'Unweighted Objective':(aC+bC+dC+hd-(sumREEF+sumCoalEF)),'A':round(aC+bC+dC,2),'B':hd,'G':(sumREEF+sumCoalEF),'Renewables':Ren_Bool,'First Year Coal Retire':Coal_first_bool,'Total Coal Generation Start':CoalRetireGenSUM,'End Active Coal (MWh)':ActiveCoal[-1],'Yearly Active Coal (MWh)':ActiveCoal,'Yearly Active Coal Capacity (MW)':ActiveCoalGen,'Solar Capacities (MW)':solarCap_axis02.tolist(),'Solar Generation (MWh)':solarGen_axis02.tolist(),'End Solar Capacity (MW)':solarCap_axis02[-1],'Wind Capacities (MW)':WindCap_axis02.tolist(),'Wind Generation (MWh)':WindGen_axis02.tolist(),'End Wind Capacity (MW)':WindCap_axis02[-1],'SMR Capacities (MW)':SMRCap_axis02, 'SMR Generation (MWh)':SMRGen_axis02,'End SMR Capacity (MW)':SMRCap_axis02[-1],'Coal O&M Cost ($)': CostCoalOM,'RE Construction Cost ($)':CostRECons,'RE O&M Cost ($)':CostREOM,'Health Damages $':HealthObj,'Coal Retirement Jobs (job-years)':JobsCoalRet,'Coal O&M Jobs (job-years)':JobsCoalOM,'RE O&M Jobs (job-years)':JobsREOM,'RE Construction Jobs (job-years)':JobsRECONS}
+    df = {'a':scenario[0],'b':scenario[1],'g':scenario[2],'Weighted Objective':(aC+bC+dC)*scenario[0]+hd*scenario[1]-(sumREEF+sumCoalEF)*scenario[2],'Unweighted Objective':(aC+bC+dC+hd-(sumREEF+sumCoalEF)),'A':round(aC+bC+dC,2),'B':hd,'G':(sumREEF+sumCoalEF),'Renewables':Ren_Bool,'First Year Coal Retire':Coal_first_bool,'Total Coal Generation Start':CoalRetireGenSUM,'End Active Coal (MWh)':ActiveCoal[-1],'Yearly Active Coal (MWh)':ActiveCoal,'Yearly Active Coal Capacity (MW)':ActiveCoalGen,'Solar Capacities (MW)':solarCap_axis02.tolist(),'Solar Generation (MWh)':solarGen_axis02.tolist(),'End Solar Capacity (MW)':solarCap_axis02[-1],'Wind Capacities (MW)':WindCap_axis02.tolist(),'Wind Generation (MWh)':WindGen_axis02.tolist(),'End Wind Capacity (MW)':WindCap_axis02[-1],'SMR Capacities (MW)':SMRCap_axis02, 'SMR Generation (MWh)':SMRGen_axis02,'End SMR Capacity (MW)':SMRCap_axis02[-1],'Coal O&M Cost_Nominal ($)': CostCoalOM,'RE Construction Cost_Nominal ($)':CostRECons,'RE O&M Cost_Nominal ($)':CostREOM,'Health Damages_Nominal $':HealthObj,'Coal Retirement Jobs_Nominal (job-years)':JobsCoalRet,'Coal O&M Jobs_Nominal (job-years)':JobsCoalOM,'RE O&M Jobs_Nominal (job-years)':JobsREOM,'RE Construction Jobs_Nominal (job-years)':JobsRECONS,'Coal O&M Cost_Discounted ($)': CostCoalOM_Disc,'RE Construction Cost_Discounted ($)':CostRECons_Disc,'RE O&M Cost_Discounted ($)':CostREOM_Disc,'Health Damages_Discounted $':HealthObj_Disc,'Coal Retirement Jobs_Discounted (job-years)':JobsCoalRet_Disc,'Coal O&M Jobs_Discounted (job-years)':JobsCoalOM_Disc,'RE O&M Jobs_Discounted (job-years)':JobsREOM_Disc,'RE Construction Jobs_Discounted (job-years)':JobsRECONS_Disc}
     
     return df
 
@@ -859,7 +888,7 @@ def Constraints(obj,plants, numYears, reSites,coalPlants,MAXCAP,SITEMAXCAP):
                     
                     
                     
-def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName,DiscRate):
+def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName,DiscRate, SMRs):
     temp_pd = pd.DataFrame()
     for scenario in scenarios:
         os.chdir(folderName)
@@ -870,10 +899,10 @@ def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSite
         b = scenario[1]
         g = scenario[2]
     
-        obj, plants, model = test_cplex(a,b,g,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate)
+        obj, plants, model = test_cplex(a,b,g,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,DiscRate,SMR_CAPEX = SMRs[0], SMR_FOPEX =  SMRs[1], SMR_VOPEX = SMRs[2])
         
         
-        Results_df = SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate)
+        Results_df = SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs)
         temp_pd = temp_pd.append(Results_df,ignore_index= True)
         PostProcess(obj,numYears,region,coalPlants,reSites,scenario, SMR_bool,folderName)
         

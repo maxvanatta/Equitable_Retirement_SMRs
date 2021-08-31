@@ -11,10 +11,12 @@ from getReEFs import batchReEFs
 
 import numpy as np
 import pandas as pd
+import warnings
+warnings.filterwarnings("ignore")
 
 
 
-def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants, SITEMINCAP,SMR_bool,DiscRate):
+def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants, SITEMINCAP,SMR_bool,DiscRate, SMR_CAPEX = 2526000, SMR_FOPEX = 25000, SMR_VOPEX = 9.46):
     ''' use sample data to test runtime and large-scale functionality of formulation '''
     print('TEST_CPLEX:')
     print('\t','getting data...')
@@ -37,9 +39,9 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
         SMR_num = 0
     RE_num = len(reSites) - SMR_num
     
-    costs = { 'RECAPEX' : np.array([1600000]*(RE_num//2) + [1700000]*(RE_num//2) + [2526000]*(SMR_num)),
-              'REFOPEX' : np.array([19000]*(RE_num//2) + [43000]*(RE_num//2) + [25000]*(SMR_num)),
-              'REVOPEX' : np.array([0]*(RE_num//2) + [0]*(RE_num//2) + [9.46]*(SMR_num)),
+    costs = { 'RECAPEX' : np.array([1600000]*(RE_num//2) + [1700000]*(RE_num//2) + [SMR_CAPEX]*(SMR_num)),
+              'REFOPEX' : np.array([19000]*(RE_num//2) + [43000]*(RE_num//2) + [SMR_FOPEX]*(SMR_num)),
+              'REVOPEX' : np.array([0]*(RE_num//2) + [0]*(RE_num//2) + [SMR_VOPEX]*(SMR_num)),
               'COALVOPEX' : np.ones(len(plants))*(4.+11*2.2),
               'COALFOPEX' : np.ones(len(plants))*40000.
             }
