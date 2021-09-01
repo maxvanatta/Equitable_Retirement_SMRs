@@ -158,7 +158,7 @@ def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objec
     print(adv_PD.shape)
     return adv_PD
 
-def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0,SMRs = [2526000,25000,9.46]):
+def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,solFileName, winFileName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0,SMRs = [2526000,25000,9.46]):
     ind_vals = pdf.index.values.tolist()
     
     a_vals = []
@@ -888,7 +888,7 @@ def Constraints(obj,plants, numYears, reSites,coalPlants,MAXCAP,SITEMAXCAP):
                     
                     
                     
-def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName,DiscRate, SMRs):
+def Initial3DSet(scenarios,numYears,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,mCapDF,threshDist,coalPlants,folderName,DiscRate, SMRs,solFileName, winFileName):
     temp_pd = pd.DataFrame()
     for scenario in scenarios:
         os.chdir(folderName)
