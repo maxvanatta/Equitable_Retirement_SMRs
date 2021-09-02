@@ -207,7 +207,7 @@ class EquitableRetirement:
 
         def capRetireRule(model,c,y):
             return model.capRetire[c,y]  == model.COALCAP[c]*model.coalRetire[c,y]
-        model.capRetireRule = pe.Constraint(model.C,model.Y,rule=capRetireRule, doc = "Retired coal capacity is equal to the whole plant capacity, if it is retired that year")
+        model.capRetireRule = pe.Constraint(model.C,model.Y,rule=capRetireRule, doc = "Retired coal capacity is equal to the whole cs capacity, if it is retired that year")
 
         def reInvestRule(model,r,c,y):
             if y == model.Y[1]:

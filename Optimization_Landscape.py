@@ -52,7 +52,7 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName
 
     if SMR_bool == True:
         for index,row in coalPlants.iterrows():
-            df = {'Technology':'smr','Latitude':row['Latitude'],'Longitude':row['Longitude'],'Annual CF': 0.70}
+            df = {'Technology':'smr','Latitude':row['Latitude'],'Longitude':row['Longitude'],'Annual CF': 0.90}
             reSites = reSites.append(df, ignore_index = True)
     
     reSitesL = list(reSites['Latitude'].astype(str)+','+reSites['Longitude'].astype(str)+','+reSites['Technology'].astype(str))
@@ -158,7 +158,7 @@ def MultiLevelABG(PDF, SeriesToInclude = ['Weighted Objective','Unweighted Objec
     print(adv_PD.shape)
     return adv_PD
 
-def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,solFileName, winFileName,DiscRate, PartNumber = 2, criteria_Series = 'Unweighted Objective', criteria_tolerance = 0,SMRs = [2526000,25000,9.46]):
+def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,mCapDF,threshDist,coalPlants,region, SMR_bool,folderName,solFileName, winFileName,DiscRate, PartNumber = 2, criteria_tolerance = 0,SMRs = [2526000,25000,9.46]):
     ind_vals = pdf.index.values.tolist()
     
     a_vals = []
@@ -231,8 +231,12 @@ def StepDown(pdf,CONEF, REOMEF, EFType, numYears ,MAXCAP,SITEMAXCAP,reSites,plan
         Results_df = SummarizeResults(obj, plants2, model, [i,j,z], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs)
         temp_pd = temp_pd.append(Results_df,ignore_index= True)
         PostProcess(obj,numYears,region,coalPlants,reSites,[i,j,z], SMR_bool,folderName)
-    new_pdf_multi = MultiLevelABG(temp_pd)
-    return pd.concat([pdf,new_pdf_multi]).sort_index()
+    if temp_pd.size <0:
+        new_pdf_multi = MultiLevelABG(temp_pd)
+        return pd.concat([pdf,new_pdf_multi]).sort_index()
+    else:
+        print('No Finer Results with these parameters')
+        return pdf
 
 def MinDiff(vals):
     diff = 1000000
@@ -926,5 +930,6 @@ def Tolerance_check(points,criteria_tolerance):
         if abs((max(B)-min(B))/max(B)) <= criteria_tolerance:
             if abs((max(G)-min(G))/max(G)) <= criteria_tolerance:
                 Crit_bool = True
+                print(points) #used to test 09022021
     return Crit_bool
         
