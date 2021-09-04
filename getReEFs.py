@@ -165,7 +165,7 @@ def getReEFs(rePlantList,year,optionalDeclineFactor = "avg"):
 
 #Updated with the older batchReEFs function- MV 08092021
 
-def batchReEFs(solarFile,windFile,year):
+def batchReEFs(solarFile,windFile,year, startYear = 2020):
     
     s = pd.read_csv(solarFile,index_col=0)
     sCols = s.columns
@@ -180,7 +180,7 @@ def batchReEFs(solarFile,windFile,year):
     reEFs = []
     
     for y in range(year):
-        print('\tFetching RE EFs for year ', 2020+y)
+        print('\tFetching RE EFs for year ', startYear+y)
         mList = []
         for cell in range(sCols.shape[0]):
             l_s = []
@@ -195,12 +195,12 @@ def batchReEFs(solarFile,windFile,year):
             l_w.append(wCols[cell].split()[1])
             l_w.append('W')
             mList.append(l_w)
-        renewableEFs = getReEFs(mList,2020+y)
-        renewableEFs['Year'] = 2020+y
+        renewableEFs = getReEFs(mList,startYear+y)
+        renewableEFs['Year'] = startYear+y
         reEFs.append(renewableEFs)
     
     res = pd.concat(reEFs)
-    res.to_csv('reEFs.csv')
+    res.to_csv('reEFs'+ str(startYear)+'.csv')
     
     CONEF = np.array(res['Con/Instl EF'])
     REOMEF = np.array(res['O&M EF'])
