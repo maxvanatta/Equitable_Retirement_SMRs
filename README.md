@@ -1,3 +1,5 @@
+# NEW DOCUMENTATION COMING 9/18
+
 # Equitable_Retirement_SMRs
 Code and resources for equitable retirement of coal plants to renewables and SMRs building upon work from ijbd, julflores000, CodeSmith92, and rathod-b
 
