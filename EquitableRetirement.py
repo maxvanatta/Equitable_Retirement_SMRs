@@ -11,9 +11,6 @@ import pyomo.opt
 # Added BR 6/21/21
 from pyomo.opt import SolverStatus
 
-import warnings
-warnings.filterwarnings("ignore")
-
 class EquitableRetirement:
     
     # Parameters from problem formulation
@@ -150,23 +147,24 @@ class EquitableRetirement:
         
         # objective: Combination of parameters and variables over sets.
         def SystemCosts(model):
-            return sum(sum(model.COALFOPEX[c] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)/((1+DiscRate)**y) for y in model.Y) \
-                + sum(sum(model.COALVOPEX[c] * model.coalGen[c,y] for c in model.C)/((1+DiscRate)**y) for y in model.Y) \
-                + sum(sum(sum(model.REFOPEX[r] * model.reCap[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**y) for y in model.Y) \
-                + sum(sum(sum(model.RECAPEX[r] * model.capInvest[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**y) for y in model.Y) \
-                + sum(sum(sum(model.REVOPEX[r] * model.reGen[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**y) for y in model.Y)     # __________________________
+            return sum(sum(model.COALFOPEX[c] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(model.COALVOPEX[c] * model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.REFOPEX[r] * model.reCap[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.RECAPEX[r] * model.capInvest[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.REVOPEX[r] * model.reGen[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
 
         def HealthCosts(model):
-            return sum(sum(model.HD[c]*model.coalGen[c,y] for c in model.C)/((1+DiscRate)**y) for y in model.Y)
+            return sum(sum(model.HD[c]*model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
 
         def Jobs(model):
             #first coal retire + coal operation then + RE construction + RE O&M
-            return sum(sum(model.RETEF[c]*model.capRetire[c,y] for c in model.C)/((1+DiscRate)**y) for y in model.Y) \
-                + sum(sum(model.COALOMEF[c]*model.coalGen[c,y] for c in model.C)/((1+DiscRate)**y) for y in model.Y) \
-                + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reCap[r,c,y] for c in model.C) for r in model.R)/((1+DiscRate)**y) for y in model.Y) # reGen changed to reCap in alignment with the unit analysis behind jobs/MW versus jobs/MWh. MV 08092021
+            return sum(sum(model.RETEF[c]*model.capRetire[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(model.COALOMEF[c]*model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reCap[r,c,y] for c in model.C) for r in model.R)/((1+DiscRate)**(y-2020)) for y in model.Y) # reGen changed to reCap in alignment with the unit analysis behind jobs/MW versus jobs/MWh. MV 08092021
 
         def Z(model):
-            return alpha*SystemCosts(model) + beta*HealthCosts(model) - gamma*Jobs(model)
+            
+            return (alpha*SystemCosts(model)/1000000000) + (beta*HealthCosts(model)/1000000000) - (gamma*Jobs(model)/10000) #Values changed to $ billion cost, $ billions damages, tens of thousands of jobs. Done to get a more detailed landscape of where the trade-offs occur. MV ~9/03/21
         model.Z = pe.Objective(rule=Z, doc='Minimize system costs, health damages, while maximizing jobs')
         
         # constraints
@@ -190,14 +188,9 @@ class EquitableRetirement:
             return sum(model.reCap[r,c,y] for c in model.C) <= model.SITEMAXCAP[r]
         model.reCapLimit = pe.Constraint(model.R,model.Y,rule=reCapLimit, doc = "RE plants can not overcount towards multiple coal generators (sum of RE plant contribution to each coal plant <= max cap of RE plant)")
         
-        #def reCapLimitLow(model,r,y):
-        #    return sum(model.reCap[r,c,y] for c in model.C) >= model.SITEMINCAP[r]
-        #model.reCapLimitLow = pe.Constraint(model.R,model.Y,rule=reCapLimitLow, doc = "")
-
         def capInvestRule(model,r,c,y):
             if y == model.Y[1]:
                 return model.capInvest[r,c,y] == model.reCap[r,c,y]
-            #else
             return model.capInvest[r,c,y] == model.reCap[r,c,y] - model.reCap[r,c,y-1]
         model.capInvestRule = pe.Constraint(model.R,model.C,model.Y,rule=capInvestRule, doc = "RE capacity to invest is equal to difference in RE cap across years")
 
@@ -212,7 +205,6 @@ class EquitableRetirement:
         def reInvestRule(model,r,c,y):
             if y == model.Y[1]:
                 return model.reInvest[r,c,y] == model.reOnline[r,c,y]
-            #else
             return model.reInvest[r,c,y] == model.reOnline[r,c,y] - model.reOnline[r,c,y-1]
         model.reInvestRule = pe.Constraint(model.R,model.C,model.Y,rule=reInvestRule,doc= "Decision to invest in RE is current year - prior")
 
@@ -246,8 +238,6 @@ class EquitableRetirement:
         
         # Updated BR 6/21/21
         res = opt.solve(self.model)
-        
-        # self.model.pprint()
         
         # Added BR 6/21/21 http://www.pyomo.org/blog/2015/1/8/accessing-solver
         print('>>Solver status is {} and solver termination condition is {}'.format(res.solver.status,res.solver.termination_condition))
