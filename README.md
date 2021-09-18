@@ -1,7 +1,7 @@
-# NEW DOCUMENTATION COMING 9/18
-
 # Equitable_Retirement_SMRs
 Code and resources for equitable retirement of coal plants to renewables and SMRs building upon work from ijbd, julflores000, CodeSmith92, and rathod-b
+
+Updated 9/18/2021 MV
 
 # Introduction:
 Download all .py files included in this Repo including:
