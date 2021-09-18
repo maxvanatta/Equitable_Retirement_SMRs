@@ -164,7 +164,7 @@ class EquitableRetirement:
 
         def Z(model):
             
-            return (alpha*SystemCosts(model)/1000000000) + (beta*HealthCosts(model)/1000000000) - (gamma*Jobs(model)/10000) #Values changed to $ billion cost, $ billions damages, tens of thousands of jobs. Done to get a more detailed landscape of where the trade-offs occur. MV ~9/03/21
+            return (alpha*SystemCosts(model)/1000000000) + (beta*HealthCosts(model)/1000000000) - (gamma*Jobs(model)/1000000) #Values changed to $ billion cost, $ billions damages, millions of job-years. Done to get a more detailed landscape of where the trade-offs occur. MV ~9/03/21
         model.Z = pe.Objective(rule=Z, doc='Minimize system costs, health damages, while maximizing jobs')
         
         # constraints
