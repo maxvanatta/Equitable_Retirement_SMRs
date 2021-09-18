@@ -1,0 +1,12 @@
+﻿Paramter,Value,Type,Hint
+Region File,MidA,Value,MidA or Cont
+Years,11,int,Number of years to run the model
+Region,OH,List ,"List format of the states to be used OR 'MidA' OR 'CONT' WITHOUT BRACKETS or QUOTES, and USE '_' not commas"
+Distance,100,int,replacement distance (mi)
+SMR_Bool,TRUE,Bool,Include SMRs in the model
+SMR_Only,FALSE,Bool,Only SMRs?
+SMR_Costs,Med,str or list,"str of basic values : Low, Med, High or List of [CAPEX,FOPEX,VOPEX]"
+Discount Rate,0.05,float,Discount rate as a decimal
+Single Model,TRUE,bool,Run only a single set of objective values
+Scenario,0.0_0.0_1.0,list of floats,"list of three floats for the a,b,g objective weights WITHOUT BRACKETS"
+Number of Steps,1,int,number of subdivisions for the landscape
