@@ -23,17 +23,26 @@ args = parser.parse_args()
 
 import_CSV = pd.read_csv(args.csvFile)
 
-if import_CSV['Value'][0] == 'MidAtlantic':
+if import_CSV['Value'][0] == 'MidA':
     solFileName = 'solar_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv' # 
     winFileName = 'wind_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv' #
+    cont = False
 else:
-    pass
+    solFileName = 'solar_cf_CONTINENTAL_0.5_2014.csv' # 
+    winFileName = 'wind_cf_CONTINENTAL_0.5_2014.csv' #
+    cont = True
 
 # How many years will the analysis run for?
 numYears = int(import_CSV['Value'][1])
 
 # Region of coal plants under analysis
-region = import_CSV['Value'][2].split('_') 
+if import_CSV['Value'][2] == 'MidA':
+    region = ['NY','PA','OH','WV','KY','TN','VA','MD','DE','NC','NJ']
+elif import_CSV['Value'][2] == 'Cont':
+    region = 'ALL'
+else:
+    region = import_CSV['Value'][2].split('_') 
+
 
 # Threshold distance within which all RE investments must be located
 threshDist = int(import_CSV['Value'][3])
@@ -45,6 +54,11 @@ if import_CSV['Value'][4] == 'TRUE':
     SMR_bool = True
 else: 
     SMR_bool = False
+    
+if import_CSV['Value'][5] == 'TRUE':
+    SMRONLY = True
+else: 
+    SMRONLY = False
 
 if import_CSV['Value'][6] == 'Low':
     SMR_Values = [728000, 7000, 9.46]
@@ -59,7 +73,7 @@ else:
         
 scenarios = OL.InitialValues(a_steps = int(import_CSV['Value'][10]),b_steps = int(import_CSV['Value'][10]),g_steps = int(import_CSV['Value'][10]))
 
-CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,SMR_Values, solFileName, winFileName,getNewEFs = import_CSV['Value'][5])
+CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,SMR_Values, solFileName, winFileName,getNewEFs = import_CSV['Value'][5],SMROnly = SMRONLY, Nation = cont)
 
 if import_CSV['Value'][8] == 'TRUE':
     scen = []

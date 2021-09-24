@@ -145,6 +145,10 @@ class EquitableRetirement:
         model.reOnline = pe.Var(model.R,model.C,model.Y,within=pe.Binary, doc = "Binary variable of whether the RE plant is on (1) or off (0)")
         model.coalOnline = pe.Var(model.C,model.Y,within=pe.Binary, doc = "Binary variable of whether the coal plant is on (1) or off (0)")
         
+        # to force retirement 
+        Os = np.zeros((4,5))
+        #model.coalOnline = pe.Param(model.C,model.Y, initialize = a2d(Os,self.C,self.Y))
+        
         # objective: Combination of parameters and variables over sets.
         def SystemCosts(model):
             return sum(sum(model.COALFOPEX[c] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
@@ -163,11 +167,12 @@ class EquitableRetirement:
                 + sum(sum(sum(model.CONEF[r,y]*model.capInvest[r,c,y] + model.REOMEF[r,y]*model.reCap[r,c,y] for c in model.C) for r in model.R)/((1+DiscRate)**(y-2020)) for y in model.Y) # reGen changed to reCap in alignment with the unit analysis behind jobs/MW versus jobs/MWh. MV 08092021
 
         def Z(model):
-            
-            return (alpha*SystemCosts(model)/1000000000) + (beta*HealthCosts(model)/1000000000) - (gamma*Jobs(model)/1000000) #Values changed to $ billion cost, $ billions damages, millions of job-years. Done to get a more detailed landscape of where the trade-offs occur. MV ~9/03/21
+            return (alpha*SystemCosts(model)) + (beta*HealthCosts(model)) - (gamma*Jobs(model)) #Values changed to $ billion cost, $ billions damages, millions of job-years. Done to get a more detailed landscape of where the trade-offs occur. MV ~9/03/21
         model.Z = pe.Objective(rule=Z, doc='Minimize system costs, health damages, while maximizing jobs')
         
         # constraints
+        
+        
         def coalGenRule(model,c,y):
             return model.coalGen[c,y] == model.HISTGEN[c]*model.coalOnline[c,y]
         model.coalGenRule = pe.Constraint(model.C,model.Y,rule=coalGenRule, doc='Coal generation must equal historical generation * whether that plant is online')
@@ -223,6 +228,10 @@ class EquitableRetirement:
             return model.coalRetire[c,y] == model.coalOnline[c,y-1] - model.coalOnline[c,y]
         model.coalRetireRule = pe.Constraint(model.C,model.Y,rule=coalRetireRule, doc = "Coal retire activation is current year must prior year")
         
+        model.coalRetire.pprint()
+        model.coalGen.pprint()
+        model.Z.pprint()
+        
         self.model = model
 
     def solve(self,alpha,beta,gamma,DiscRate, solver='glpk'):
@@ -234,7 +243,7 @@ class EquitableRetirement:
 
         print('running ({},{},{})...'.format(alpha,beta,gamma))
         
-        opt = pyomo.opt.SolverFactory(solver)
+        opt = pyomo.opt.SolverFactory(solver,tee = True)
         
         # Updated BR 6/21/21
         res = opt.solve(self.model)

@@ -26,7 +26,7 @@ import os
 
 
 
-def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName, winFileName, getNewEFs = False, SMROnly = False):
+def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName, winFileName, getNewEFs = False, SMROnly = False, Nation = False):
     plants = CoalPlants.getCoalPlants(region)
     plants['HISTGEN'] = CoalPlants.getPlantGeneration(plants['Plant Code'])
     plants['HD'] = CoalPlants.getMarginalHealthCosts(plants['Plant Code'])
@@ -34,6 +34,7 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName
     coalData = pd.read_excel('3_1_Generator_Y2019.xlsx',header=1,index_col='Plant Code',sheet_name='Operable',usecols='B:F')
     coalPlants = plants.merge(coalData, left_on='Plant Code', right_index=True)
     coalPlants = coalPlants.drop_duplicates()
+    #coalPlants = coalPlants.loc[coalPlants['Plant Code']==6002]
     print(coalPlants)
     
     if SMR_bool == True:
@@ -63,7 +64,10 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName
     
     # OR load the information from csv files saved from prior runs for above regions/numYears to save time.
     else:
-        res = pd.read_csv('reEFs.csv')
+        if Nation:
+            res = pd.read_csv('reEFs_cont.csv')
+        else:
+            res = pd.read_csv('reEFs.csv')
         res = res.loc[res['Year'] < (2020+numYears)]
         CONEF = np.array(res['Con/Instl EF'])
         REOMEF = np.array(res['O&M EF'])
@@ -227,7 +231,7 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         b2 = 0
         
         for c in range(len(plants)):
-            aC += model.Params.COALFOPEX[c]*plants['Coal Capacity (MW)'].values[c]*obj.coalOnline[c,y]
+            aC += model.Params.COALFOPEX[c] * model.Params.COALCAP[c] * obj.coalOnline[c,y]
             bC += model.Params.COALVOPEX[c]*obj.coalGen[c,y]
             if y ==1:
                 if bC == 0:
@@ -235,12 +239,12 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
             for r in range(len(reSites)):
                 
                 RECons += model.Params.RECAPEX[r]*obj.capInvest[r,c,y]
-                REOM +=  (model.Params.REFOPEX[r]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r])
+                REOM +=  (model.Params.REFOPEX[r]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r] * obj.reGen[r,c,y])
                 
             if dC>0:
                 Ren_Bool = True
                 
-        dC = RECons + REOM
+        dC = (RECons + REOM)/((1+DiscRate)**(y+1))
         CostCoalOM.append(aC+bC)
         CostRECons.append(RECons)
         CostREOM.append(REOM)
