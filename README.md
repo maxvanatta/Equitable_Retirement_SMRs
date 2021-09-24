@@ -93,13 +93,10 @@ model output:
 - __*FileName_*map.html : which graphically shows the location of the changes and the RE sites.
 
 # Getting compiled results out: 
-Script and Information for this coming soon! (written script, but haven't made it pretty yet/made it bug-free yet)
+Script and information for this coming soon! (written script, but haven't made it pretty yet/made it bug-free yet)
 
 # Issues outstanding
-- Running the 0,0,1 objective does not complete on the the Mid-Atlantic model in Great Lakes (but works locally)
-  - To test: Update the cplex to 20.1.0.1
-- Continental still will not run fully.  Will evaluate if this is the files or if the reason is the tested case was 0,0,1 from above.
-- Variations in the distance paramter does not always yield expected results.
+- Currently National model does not go past 11 years.  Will produce more years for 20 year model runs later.
 
 # Notes from prior iterations:
 The adapting landscape method which would refine the results based upon the difference between results, hence investigating more specific areas of variation without havign to go through and edit the code too dramatically was not reliable (or at least it found the other issues within the model) and therefore is currently not available. 
