@@ -17,7 +17,7 @@ Download all .py files included in this Repo including:
 - reEFs.csv : This file contains the employment data for the RE sites for 20 years for the midAtlantic. The full continental US will be updated soon.
 
 Download the supplemental materials folder (not here due to size) at this link: 
-https://drive.google.com/file/d/1Om8A8gX3tqSgJervvPJzNeAvljGMHI7X/view?usp=sharing
+https://drive.google.com/file/d/1NNVT_x_v16EArvWSdI9LvS6XqzJaUwKw/view?usp=sharing
 Ensure the directory after unzipping this folder includes: 
 - data (folder)
 - EF_data (folder)
@@ -25,6 +25,10 @@ Ensure the directory after unzipping this folder includes:
 - 3_1_Generator_Y2019.xlsx
 - solar_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv
 - wind_cf_NY_PA_OH_WV_KY_TN_VA_MD_DE_NC_NJ_0.5_2014.csv
+- reEFs.csv
+- reEFs_cont.csv
+- solar_cf_CONTINENTAL_0.5_2014.csv
+- wind_cf_CONTINENTAL_0.5_2014.csv
 
 # Environment Setup:
 Ensure all dependancies are install in the current environment:
