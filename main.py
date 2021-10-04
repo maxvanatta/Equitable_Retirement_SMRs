@@ -73,13 +73,13 @@ else:
         
 scenarios = OL.InitialValues(a_steps = int(import_CSV['Value'][10]),b_steps = int(import_CSV['Value'][10]),g_steps = int(import_CSV['Value'][10]))
 
-CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,SMR_Values, solFileName, winFileName,getNewEFs = import_CSV['Value'][5],SMROnly = SMRONLY, Nation = cont)
+CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,SMR_Values, solFileName, winFileName,getNewEFs = import_CSV['Value'][5],SMROnly = SMRONLY, Nation = cont)
 
 if import_CSV['Value'][8] == 'TRUE':
     scen = []
     for s in import_CSV['Value'][9].split('_'):
         scen.append(float(s))
-    obj, model = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMR_Values)
+    obj, model = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMR_Values)
 else:
     for scen in scenarios:
-        obj, model = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SITEMINCAP,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMR_Values)
+        obj, model = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMR_Values)
