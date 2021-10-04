@@ -11,7 +11,8 @@ Download all .py files included in this Repo including:
 - RenewableSites.py : This file sets up the renewable  (From ijbd, julflore000, rathod-b, CodeSmith92)
 - getCoalEFs : Updated by julflore000
 - getReEFs.py : Updated by julflore000
-- EquitableRetirement.py : This file is where the optimization, objective, constraints, etc exists. Updated from version by ijbd, julflore000, Bhavesh Rathod, Dylan Smith by MaxV.
+- EquitableRetirement.py : OLD, Not used
+- EquitableRetirement_CO2.py : This file is where the optimization, objective, constraints, etc exists. Updated from version by ijbd, julflore000, Bhavesh Rathod, Dylan Smith by MaxV.  NOW includes the CO2 limitation 
 - Optimization_Landscape : This file contains the functions which access all others to build the model and to do recursive model runs.
 - main.py : This file is runs the entire model and takes a csv input using cli.  This file should be formatted as the Inputs.csv included here.
 - reEFs.csv : This file contains the employment data for the RE sites for 20 years for the midAtlantic. The full continental US will be updated soon.
