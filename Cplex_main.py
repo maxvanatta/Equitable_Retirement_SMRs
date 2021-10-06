@@ -15,7 +15,7 @@ import pandas as pd
 
 
 
-def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_CAPEX, SMR_FOPEX, SMR_VOPEX, CO2Limits= 'Linear2030', jobCoeff = 1):
+def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_CAPEX, SMR_FOPEX, SMR_VOPEX, CO2Limits= 'Linear2030', jobCoeff = 1, RE_Case = 'Moderate'):
     ''' use sample data to test runtime and large-scale functionality of formulation '''
     print('TEST_CPLEX:')
     print('\t','getting data...')
@@ -27,11 +27,90 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
         SMR_num = 0
     RE_num = len(reSites) - SMR_num
     
-    costs = { 'RECAPEX' : np.array([1600000]*(RE_num//2) + [1700000]*(RE_num//2) + [SMR_CAPEX]*(SMR_num)),
-              'REFOPEX' : np.array([19000]*(RE_num//2) + [43000]*(RE_num//2) + [SMR_FOPEX]*(SMR_num)),
-              'REVOPEX' : np.array([0]*(RE_num//2) + [0]*(RE_num//2) + [SMR_VOPEX]*(SMR_num)),
-              'COALVOPEX' : np.ones(len(plants))*(4.+11*2.2),
-              'COALFOPEX' : np.ones(len(plants))*40000.
+    ATB_data = pd.read_csv('ATB_Data.csv')
+    
+    if CO2Limits =='Conservative':
+        Solar_CAPEX = ATB_data['PV_Conservative_Cap'].to_list()
+        Wind_CAPEX = ATB_data['Wind_Conservative_Cap'].to_list()
+        Solar_OM = ATB_data['PV_Conservative_OM'].to_list()
+        Wind_OM = ATB_data['Wind_Conservative_OM'].to_list()
+        Coal_VOPEX = ATB_data['Coal O&M $/MWhr'].to_list()
+        Coal_FOPEX = ATB_data['Coal O&M $/kW-yr'].to_list()
+    
+    elif CO2Limits =='Advanced':
+        Solar_CAPEX = ATB_data['PV_Advanced_Cap'].to_list()
+        Wind_CAPEX = ATB_data['Wind_Advanced_Cap'].to_list()
+        Solar_OM = ATB_data['PV_Advanced_OM'].to_list()
+        Wind_OM = ATB_data['Wind_Advanced_OM'].to_list()
+        Coal_VOPEX = ATB_data['Coal O&M $/MWhr'].to_list()
+        Coal_FOPEX = ATB_data['Coal O&M $/kW-yr'].to_list()
+    
+    else:
+        Solar_CAPEX = ATB_data['PV_Moderate_Cap'].to_list()
+        Wind_CAPEX = ATB_data['Wind_Moderate_Cap'].to_list()
+        Solar_OM = ATB_data['PV_Moderate_OM'].to_list()
+        Wind_OM = ATB_data['Wind_Moderate_OM'].to_list()
+        Coal_VOPEX = ATB_data['Coal O&M $/MWhr'].to_list()
+        Coal_FOPEX = ATB_data['Coal O&M $/kW-yr'].to_list()
+    
+    RECAPEX = []
+    REFOPEX = []
+    REVOPEX = []
+    COALVOPEX = []
+    COALFOPEX = []
+
+    for r in range(RE_num):
+        RECAPEX_h = []
+        REFOPEX_h = []
+        REVOPEX_h = []
+        for y in range(numYears):
+            RECAPEX_h.append(Solar_CAPEX[y]*1000)
+            REFOPEX_h.append(Solar_OM[y]*1000)
+            REVOPEX_h.append(0)
+        RECAPEX.append(RECAPEX_h)
+        REFOPEX.append(REFOPEX_h)
+        REVOPEX.append(REVOPEX_h)
+    for r in range(RE_num):
+        RECAPEX_h = []
+        REFOPEX_h = []
+        REVOPEX_h = []
+        for y in range(numYears):
+            RECAPEX_h.append(Wind_CAPEX[y]*1000)
+            REFOPEX_h.append(Wind_OM[y]*1000)
+            REVOPEX_h.append(0)
+        RECAPEX.append(RECAPEX_h)
+        REFOPEX.append(REFOPEX_h)
+        REVOPEX.append(REVOPEX_h)
+    if SMR_bool:
+        for r in range(SMR_num):
+            RECAPEX_h = []
+            REFOPEX_h = []
+            REVOPEX_h = []
+            for y in range(numYears):
+                RECAPEX_h.append(Wind_CAPEX[y]*1000)
+                REFOPEX_h.append(Wind_OM[y]*1000)
+                REVOPEX_h.append(0)
+            RECAPEX.append(RECAPEX_h)
+            REFOPEX.append(REFOPEX_h)
+            REVOPEX.append(REVOPEX_h)
+
+    for c in range(len(plants)):
+        COALVOPEX_h = []
+        COALFOPEX_h = [] 
+        for y in range(numYears):
+            COALVOPEX_h.append(Coal_VOPEX[y])
+            COALFOPEX_h.append(Coal_FOPEX[y]*1000)
+
+        COALVOPEX.append(COALVOPEX_h)
+        COALFOPEX.append(COALFOPEX_h)
+
+    ATB_data
+
+    costs = { 'RECAPEX' : np.array(RECAPEX),
+                  'REFOPEX' : np.array(REFOPEX),
+                  'REVOPEX' : np.array(REVOPEX),
+                  'COALVOPEX' : np.array(COALVOPEX),
+                  'COALFOPEX' : np.array(COALFOPEX)
             }
     
     # site limits

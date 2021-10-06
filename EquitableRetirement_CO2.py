@@ -123,13 +123,13 @@ class EquitableRetirement:
         model.HISTGEN = pe.Param(model.C, initialize=a2d(self.Params.HISTGEN,self.C), doc = "Historical Generation of coal plants")
         model.COALCAP = pe.Param(model.C, initialize=a2d(self.Params.COALCAP,self.C), doc = 'Nameplate Capacity of coal plants')
         model.CF = pe.Param(model.R, initialize=a2d(self.Params.CF,self.R),doc = "Annual CF @ RE location")
-        model.RECAPEX = pe.Param(model.R, initialize=a2d(self.Params.RECAPEX,self.R),doc = "RE plants CAPEX values ($/MW")
-        model.REFOPEX = pe.Param(model.R, initialize=a2d(self.Params.REFOPEX,self.R),doc = "RE plants OPEX values ($/MW")
+        model.RECAPEX = pe.Param(model.R,model.Y, initialize=a2d(self.Params.RECAPEX,self.R,self.Y),doc = "RE plants CAPEX values ($/MW")
+        model.REFOPEX = pe.Param(model.R,model.Y, initialize=a2d(self.Params.REFOPEX,self.R,self.Y),doc = "RE plants OPEX values ($/MW")
         # MWh-->MW
-        model.REVOPEX = pe.Param(model.R, initialize=a2d(self.Params.REVOPEX,self.R),doc = "RE plants VOPEX values ($/MWh")
+        model.REVOPEX = pe.Param(model.R,model.Y, initialize=a2d(self.Params.REVOPEX,self.R,self.Y),doc = "RE plants VOPEX values ($/MWh")
         # NEW^
-        model.COALVOPEX = pe.Param(model.C, initialize=a2d(self.Params.COALVOPEX,self.C), doc = 'Coal plants VOPEX values $/MWh')
-        model.COALFOPEX = pe.Param(model.C, initialize=a2d(self.Params.COALFOPEX,self.C), doc = "Coal plants FOPEX values $/MW")
+        model.COALVOPEX = pe.Param(model.C,model.Y, initialize=a2d(self.Params.COALVOPEX,self.C,self.Y), doc = 'Coal plants VOPEX values $/MWh')
+        model.COALFOPEX = pe.Param(model.C,model.Y, initialize=a2d(self.Params.COALFOPEX,self.C,self.Y), doc = "Coal plants FOPEX values $/MW")
         model.MAXCAP = pe.Param(model.R,model.C,initialize=a2d(self.Params.MAXCAP,self.R,self.C), doc ='Maximum capacity for RE plant to replace coal plant MW')    # Multiple sets as basis for values.
         model.SITEMAXCAP = pe.Param(model.R, initialize=a2d(self.Params.SITEMAXCAP,self.R), doc = 'Maximum total capacity for RE site MW')
 
@@ -159,11 +159,11 @@ class EquitableRetirement:
         
         # objective: Combination of parameters and variables over sets.
         def SystemCosts(model):
-            return sum(sum(model.COALFOPEX[c] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
-                + sum(sum(model.COALVOPEX[c] * model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.REFOPEX[r] * model.reCap[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.RECAPEX[r] * model.capInvest[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.REVOPEX[r] * model.reGen[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
+            return sum(sum(model.COALFOPEX[c,y] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(model.COALVOPEX[c,y] * model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.REFOPEX[r,y] * model.reCap[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.RECAPEX[r,y] * model.capInvest[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.REVOPEX[r,y] * model.reGen[r,c,y] for r in model.R) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
 
         def HealthCosts(model):
             return sum(sum(model.HD[c]*model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)

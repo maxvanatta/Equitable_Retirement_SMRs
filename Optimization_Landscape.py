@@ -261,15 +261,15 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         b2 = 0
         
         for c in range(len(plants)):
-            aC += model.Params.COALFOPEX[c] * model.Params.COALCAP[c] * obj.coalOnline[c,y]/((1+DiscRate)**(y))
-            bC += model.Params.COALVOPEX[c]*obj.coalGen[c,y]/((1+DiscRate)**(y))
+            aC += model.Params.COALFOPEX[c,y] * model.Params.COALCAP[c] * obj.coalOnline[c,y]/((1+DiscRate)**(y))
+            bC += model.Params.COALVOPEX[c,y]*obj.coalGen[c,y]/((1+DiscRate)**(y))
             if y ==1:
                 if bC == 0:
                     Coal_first_bool = True
             for r in range(len(reSites)):
                 
-                RECons += model.Params.RECAPEX[r]*obj.capInvest[r,c,y]
-                REOM +=  (model.Params.REFOPEX[r]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r] * obj.reGen[r,c,y])
+                RECons += model.Params.RECAPEX[r,y]*obj.capInvest[r,c,y]
+                REOM +=  (model.Params.REFOPEX[r,y]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r,y] * obj.reGen[r,c,y])
                 
             if dC>0:
                 Ren_Bool = True
@@ -452,7 +452,7 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
             coalGen.append(obj.coalGen[c,y])
             coalYr.append(cYr)
             
-            coalOM_Cost.append((model.Params.COALFOPEX[c] * model.Params.COALCAP[c] * obj.coalOnline[c,y]) + (model.Params.COALVOPEX[c] * obj.coalGen[c,y]))  # MV 9/17/2021
+            coalOM_Cost.append((model.Params.COALFOPEX[c,y] * model.Params.COALCAP[c] * obj.coalOnline[c,y]) + (model.Params.COALVOPEX[c,y] * obj.coalGen[c,y]))  # MV 9/17/2021
             coalOM_Jobs.append(model.Params.COALOMEF[c]*obj.coalGen[c,y]) # MV 9/17/2021
             coalRet_Jobs.append(model.Params.RETEF[c]*obj.capRetire[c,y]) # MV 9/17/2021
             coalHealth.append(model.Params.HD[c]*obj.coalGen[c,y]) # MV 9/17/2021
@@ -470,10 +470,10 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
                     reOnline.append(1)
                 else:
                     reOnline.append(0)
-                reOM_cost.append(model.Params.REVOPEX[r] * obj.reGen[r,c,y] + model.Params.REFOPEX[r] * obj.reCap[r,c,y]) # MV 9/17/2021
+                reOM_cost.append(model.Params.REVOPEX[r,y] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]) # MV 9/17/2021
                 reOM_Jobs.append(model.Params.REOMEF[r,y]*obj.reCap[r,c,y]) # MV 9/17/2021
                 reInvest.append(obj.capInvest[r,c,y])
-                reCons_cost.append(model.Params.RECAPEX[r] * obj.capInvest[r,c,y]) # MV 9/17/2021
+                reCons_cost.append(model.Params.RECAPEX[r,y] * obj.capInvest[r,c,y]) # MV 9/17/2021
                 reCons_Jobs.append(model.Params.CONEF[r,y]*obj.capInvest[r,c,y]) # MV 9/17/2021
                 cpInvest.append(obj.capInvest[r,c,y])
                 totReCap.append(obj.reCap[r,c,y])
@@ -490,22 +490,22 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
                     sg_h += obj.reGen[r,c,y]
                     sco_h += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
                     som_h += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]
-                    scc_h += model.Params.RECAPEX[r] * obj.capInvest[r,c,y]
-                    scoo_h += model.Params.REVOPEX[r] * obj.reGen[r,c,y] + model.Params.REFOPEX[r] * obj.reCap[r,c,y]
+                    scc_h += model.Params.RECAPEX[r,y] * obj.capInvest[r,c,y]
+                    scoo_h += model.Params.REVOPEX[r,y] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]
                 if reSites.iloc[r,3] =='w':
                     wc_h += obj.reCap[r,c,y]
                     wg_h += obj.reGen[r,c,y]
                     wco_h += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
                     wom_h += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]
                     wcc_h += model.Params.RECAPEX[r] * obj.capInvest[r,c,y]
-                    wcoo_h += model.Params.REVOPEX[r] * obj.reGen[r,c,y] + model.Params.REFOPEX[r] * obj.reCap[r,c,y]
+                    wcoo_h += model.Params.REVOPEX[r] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]
                 if reSites.iloc[r,3] =='smr':
                     smrc_h += obj.reCap[r,c,y]
                     smrg_h += obj.reGen[r,c,y]
                     smrco_h += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
                     smrom_h += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]
-                    smrcc_h += model.Params.RECAPEX[r] * obj.capInvest[r,c,y]
-                    smrcoo_h += model.Params.REVOPEX[r] * obj.reGen[r,c,y] + model.Params.REFOPEX[r] * obj.reCap[r,c,y]
+                    smrcc_h += model.Params.RECAPEX[r,y] * obj.capInvest[r,c,y]
+                    smrcoo_h += model.Params.REVOPEX[r,y] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]
         yrCoalGen.append(cg_h)
         yrCoalCap.append(cc_h)
         yrCoalOM.append(com_h)
