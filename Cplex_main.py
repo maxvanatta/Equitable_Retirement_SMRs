@@ -15,7 +15,7 @@ import pandas as pd
 
 
 
-def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_CAPEX, SMR_FOPEX, SMR_VOPEX, CO2Limits= 'Linear2030', jobCoeff = 1, RE_Case = 'Moderate'):
+def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_CAPEX, SMR_FOPEX, SMR_VOPEX,RED_indexes,MASK, REV_INDS, CO2Limits= 'Linear2030', jobCoeff = 1.0, RE_Case = 'Moderate'):
     ''' use sample data to test runtime and large-scale functionality of formulation '''
     print('TEST_CPLEX:')
     print('\t','getting data...')
@@ -26,10 +26,11 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     else: 
         SMR_num = 0
     RE_num = len(reSites) - SMR_num
+    print(RE_num)
     
     ATB_data = pd.read_csv('ATB_Data.csv')
     
-    if CO2Limits =='Conservative':
+    if RE_Case =='Conservative':
         Solar_CAPEX = ATB_data['PV_Conservative_Cap'].to_list()
         Wind_CAPEX = ATB_data['Wind_Conservative_Cap'].to_list()
         Solar_OM = ATB_data['PV_Conservative_OM'].to_list()
@@ -37,7 +38,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
         Coal_VOPEX = ATB_data['Coal O&M $/MWhr'].to_list()
         Coal_FOPEX = ATB_data['Coal O&M $/kW-yr'].to_list()
     
-    elif CO2Limits =='Advanced':
+    elif RE_Case =='Advanced':
         Solar_CAPEX = ATB_data['PV_Advanced_Cap'].to_list()
         Wind_CAPEX = ATB_data['Wind_Advanced_Cap'].to_list()
         Solar_OM = ATB_data['PV_Advanced_OM'].to_list()
@@ -59,7 +60,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     COALVOPEX = []
     COALFOPEX = []
 
-    for r in range(RE_num):
+    for r in range(int(RE_num/2)):
         RECAPEX_h = []
         REFOPEX_h = []
         REVOPEX_h = []
@@ -70,7 +71,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
         RECAPEX.append(RECAPEX_h)
         REFOPEX.append(REFOPEX_h)
         REVOPEX.append(REVOPEX_h)
-    for r in range(RE_num):
+    for r in range(int(RE_num/2)):
         RECAPEX_h = []
         REFOPEX_h = []
         REVOPEX_h = []
@@ -87,9 +88,9 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
             REFOPEX_h = []
             REVOPEX_h = []
             for y in range(numYears):
-                RECAPEX_h.append(Wind_CAPEX[y]*1000)
-                REFOPEX_h.append(Wind_OM[y]*1000)
-                REVOPEX_h.append(0)
+                RECAPEX_h.append(SMR_CAPEX)
+                REFOPEX_h.append(SMR_FOPEX)
+                REVOPEX_h.append(SMR_VOPEX)
             RECAPEX.append(RECAPEX_h)
             REFOPEX.append(REFOPEX_h)
             REVOPEX.append(REVOPEX_h)
@@ -132,35 +133,35 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     m.Y = np.arange(numYears)+2020
     m.R = reSites.index.values
     m.C = plants.index.values
+    m.R_RED = np.array(range(RED_indexes.shape[1]))
     
     
     
     m.Params.HISTGEN = plants['HISTGEN'].values
-    m.Params.CO2ME = np.full(len(m.C),1400) # THis will be replaced on a per plant basis. 1400lb/MWh currrently
-    CO2_Limits = []
+    m.Params.CO2ME = np.array(plants['Marginal Emissions USt/MWh']) #np.full(len(m.C),1400) # THis will be replaced on a per plant basis. 1400lb/MWh currrently
+    CO2_Limits = [sum(m.Params.CO2ME*m.Params.HISTGEN)] #this keeps first year as unrestricted by CO2 and the second year is purely economic closing.
     if CO2Limits == 'Linear2030':
         endYear = 2030
         years = 10
         total_initial = sum(m.Params.CO2ME*m.Params.HISTGEN)
-        for i in range(numYears):
-            CO2_Limits.append(total_initial-(total_initial/years)*i)
-        if numYears> years+1:
-            CO2_Limits = CO2_Limits+ ([0]*(numYears-(years+1)))         
+        for i in range(years-1): #-1 from the first value being input in the initial list forulation above
+            CO2_Limits.append(total_initial-(total_initial/(years-1))*i)
+        CO2_Limits = CO2_Limits+([0]*(numYears))         
     if CO2Limits == 'Linear2035':
         endYear = 2035
         years = 15
         total_initial = sum(m.Params.CO2ME*m.Params.HISTGEN)
-        for i in range(numYears):
-            CO2_Limits.append(total_initial-(total_initial/years)*i)
-        if numYears> years+1:
-            CO2_Limits = CO2_Limits+ ([0]*(numYears-(years+1)))
-            
+        for i in range(years-1):
+            CO2_Limits.append(total_initial-(total_initial/(years-1))*i)
+        CO2_Limits = CO2_Limits+([0]*(numYears))
     
-    m.Params.CO2Limits = np.array(CO2_Limits)
+    print(CO2_Limits[:numYears])
+    
+    m.Params.CO2Limits = np.array(CO2_Limits[:numYears])
 
     
     m.Params.COALCAP = plants['Coal Capacity (MW)'].values
-    m.Params.CF = reSites['Annual CF'].values
+    m.Params.CF = reSites['Annual CF'].values * reSites['Eligible']
     m.Params.RECAPEX = costs['RECAPEX']
     m.Params.REFOPEX = costs['REFOPEX']
     m.Params.REVOPEX = costs['REVOPEX']
@@ -176,6 +177,11 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     m.Params.REOMEF = ef['REOMEF']
     m.Params.JOBCEOFF = jobCoeff
     m.Params.DiscRate = DiscRate
+    
+    m.Params.RED_INDEXES = RED_indexes
+    m.Params.MASK = MASK
+    m.Params.REV_INDS = REV_INDS
+    
 
     '''
     ### CHECK DIMS

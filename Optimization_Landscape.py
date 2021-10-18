@@ -30,11 +30,25 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName
     plants = CoalPlants.getCoalPlants(region)
     plants['HISTGEN'] = CoalPlants.getPlantGeneration(plants['Plant Code'])
     plants['HD'] = CoalPlants.getMarginalHealthCosts(plants['Plant Code'])
+    #print('checkpoint1')
     plants.dropna(inplace=True)
     coalData = pd.read_excel('3_1_Generator_Y2019.xlsx',header=1,index_col='Plant Code',sheet_name='Operable',usecols='B:F')
     coalPlants = plants.merge(coalData, left_on='Plant Code', right_index=True)
     coalPlants = coalPlants.drop_duplicates()
+    #print('checkpoint12')
+    EM_Data = pd.read_csv('co2EmRateTest.csv')
+    EM_Data
+
+    ids = coalPlants['Plant Code'].to_list()
+    CO2s = []
+    for i in ids:
+        h = EM_Data.loc[EM_Data['Plant Code']== i]['CO2Rate'].to_list()
+        CO2s.append(h[0])
+    plants['Marginal Emissions USt/MWh'] = CO2s
+    coalPlants['Marginal Emissions USt/MWh'] = CO2s
     print(coalPlants)
+    
+    
     
     if SMR_bool == True:
         folderName = ('_'.join(region)+'_'+str(numYears)+'years_'+str(threshDist)+'miles_'+str(DiscRate)+'_DR_'+str(jobCoeff)+'JC_SMR_'+str(SMR_bool)+'_'+str(SMRs[0])+'_'+str(SMRs[1])+'_'+str(SMRs[2]))
@@ -114,30 +128,56 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName
     
     SITEMAXCAP = np.array(Site_Maxs)
     
-    #print(len(reSites.index))
-    
-    
+
     # for each coal plant, use its lat lon to calculate distance between RE sites and the plant. if distance is more than X then make capacity 0
     reSites['Eligible'] = 0
+    RESITE_REDUCED = []
+    ns = []
     for c in range(MAXCAP.shape[1]):
+        #print('step1')
+        c_REDUCED = []
+        site = 0
         coalCord = (coalPlants.iloc[c,1],coalPlants.iloc[c,2])
         for s in range(MAXCAP.shape[0]):
             reCord = (reSites.iloc[s,0],reSites.iloc[s,1])
             dist = haversine(coalCord,reCord, unit=Unit.MILES)
-            #print(s)
             if dist<threshDist:
+                #print(s)
+                c_REDUCED.append(s)
                 if EFType[s] == 'S':
-                    MAXCAP[s,c] = 16276
-                    #SITEMAXCAP.append(16276)
+                    MAXCAP[s,c] = 16276 
                 elif EFType[s] =='W':
-                    MAXCAP[s,c] = 1507
-                    #SITEMAXCAP.append(1507)
+                    MAXCAP[s,c] = 1507 
                 else:
                     MAXCAP[s,c] = 10000
-                    #SITEMAXCAP.append(10000)
                 reSites.iloc[s,-1] = 1
+            #site+=1
+        RESITE_REDUCED.append(c_REDUCED)
+        ns.append(len(c_REDUCED))
+        
+    SITEMAXCAP*=reSites['Eligible']
+
+    #print(RESITE_REDUCED)
+    print(ns)
+
+    MASK_base = []
+    NP_base = []
+    for i in RESITE_REDUCED:
+        MASK_base.append([1]*len(i)+[0]*(max(ns)-len(i)))
+        i = i + [0]*max(ns)
+        NP_base.append(i[:max(ns)])
+    RED_indexes = np.array(NP_base)
+    MASK = np.array(MASK_base)
     
+    REV_INDS = np.zeros((MAXCAP.shape[0],MAXCAP.shape[1]),dtype = int)
+    for rr_r in range(RED_indexes.shape[1]):
+        for rr_c in range(RED_indexes.shape[0]):
+            r_val = RED_indexes[rr_c,rr_r]
+            c_val = rr_c
+            REV_INDS[r_val,c_val] = int(rr_r)
+
     
+
     
     ind = reSites['Latitude'].astype(str)+reSites['Longitude'].astype(str)
     mCapDF = pd.DataFrame(MAXCAP,index=ind,columns=list(coalPlants['Plant Name']))
@@ -164,14 +204,14 @@ def PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate, SMRs, solFileName
     
     print(folderName)
     
-    return CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants, mCapDF,coalPlants, folderName
+    return CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants, mCapDF,coalPlants, folderName, RED_indexes, MASK, REV_INDS
     
 
-def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMRs, CO2_Limits = 'Linear2030'):
+def SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMRs,RED_indexes,MASK,REV_INDS,CO2_Limits = 'Linear2030'):
     
-    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMRs[0],SMRs[1],SMRs[2],CO2Limits = CO2_Limits)
-    SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs, prints = True)
-    PostProcess(obj,model,numYears,region,coalPlants,reSites,[scen[0],scen[1],scen[2]], SMR_bool,folderName)
+    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMRs[0],SMRs[1],SMRs[2],RED_indexes,MASK,REV_INDS,CO2Limits = CO2_Limits)
+    NEW_RES = SummarizeResults(obj, plants2, model, [scen[0],scen[1],scen[2]], region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMRs, prints = True)
+    PostProcess(obj,model,numYears,region,coalPlants,reSites,[scen[0],scen[1],scen[2]], SMR_bool,folderName,NEW_RES)
     
     return obj, model
 
@@ -232,6 +272,24 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         print('System cost component:')
     FileWrite.write('System cost component:')
     
+    NEW_capInvest = np.zeros((len(reSites),len(plants),numYears))
+    NEW_reInvest = np.zeros((len(reSites),len(plants),numYears))
+    NEW_reOnline = np.zeros((len(reSites),len(plants),numYears))
+    NEW_reGen = np.zeros((len(reSites),len(plants),numYears))
+    NEW_reCap = np.zeros((len(reSites),len(plants),numYears))
+    
+    for y in range(numYears):
+        for c in range(len(plants)):
+            for r in range(model.Params.MASK.shape[1]):
+                r_index = model.Params.RED_INDEXES[c,r]
+                NEW_capInvest[r_index,c,y] += float(obj.capInvest[r,c,y])
+                NEW_reGen[r_index,c,y] += obj.reGen[r,c,y]
+                NEW_reCap[r_index,c,y] += obj.reCap[r,c,y]
+                if NEW_reInvest[r_index,c,y] == 0:
+                    NEW_reInvest[r_index,c,y] += int(obj.reInvest[r,c,y])
+                if NEW_reOnline[r_index,c,y] == 0:
+                    NEW_reOnline[r_index,c,y] += int(obj.reOnline[r,c,y])
+        
     
     CostCoalOM = []
     CostCoalRet = [] # do we need to find values for this aspect?
@@ -268,8 +326,9 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
                     Coal_first_bool = True
             for r in range(len(reSites)):
                 
-                RECons += model.Params.RECAPEX[r,y]*obj.capInvest[r,c,y]
-                REOM +=  (model.Params.REFOPEX[r,y]*obj.reCap[r,c,y]+ model.Params.REVOPEX[r,y] * obj.reGen[r,c,y])
+                RECons += model.Params.RECAPEX[r,y]*NEW_capInvest[r,c,y]
+                
+                REOM +=  (model.Params.REFOPEX[r,y]*NEW_reCap[r,c,y]+ model.Params.REVOPEX[r,y] * NEW_reGen[r,c,y])
                 
             if dC>0:
                 Ren_Bool = True
@@ -325,8 +384,8 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
         RE_OM = 0
         for c in range(len(plants)):
             for r in range(len(reSites)):
-                RE_Cap += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
-                RE_OM += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]# reGen turned to reCap to MV 08092021
+                RE_Cap += model.Params.CONEF[r,y]*NEW_capInvest[r,c,y]
+                RE_OM += model.Params.REOMEF[r,y]*NEW_reCap[r,c,y]# reGen turned to reCap to MV 08092021
         b = RE_Cap + RE_OM       
         if prints == True:
             print('\tYear {} CONEF + REOMEF = {}.'.format(y,b))
@@ -344,8 +403,18 @@ def SummarizeResults(obj, plants, model, scenario, region, threshDist,SMR_bool, 
     FileWrite.write('\nSum of objective components = {}'.format(round(objS)))
     FileWrite.close()
     os.chdir('..')
+    
+    NEW_RES = [NEW_capInvest ,NEW_reInvest ,NEW_reOnline,NEW_reGen,NEW_reCap]
+    return NEW_RES
 
-def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,folderName):
+def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,folderName,NEW_RES):
+    
+    NEW_capInvest = NEW_RES[0]
+    NEW_reInvest = NEW_RES[1]
+    NEW_reOnline = NEW_RES[2]
+    NEW_reGen = NEW_RES[3]
+    NEW_reCap = NEW_RES[4]
+        
     for i in scenario:
         i = float(i) # done to prevent multiple formats of scenario values which get REALLY frustrating in data analysis MV 9/15/2021
     cLat = []
@@ -463,21 +532,21 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
             cg_h += obj.coalGen[c,y]
             cc_h += model.Params.COALCAP[c]*obj.coalOnline[c,y]
             com_h += model.Params.COALOMEF[c]*obj.coalGen[c,y]
-            ccost_h += (model.Params.COALFOPEX[c] * model.Params.COALCAP[c] * obj.coalOnline[c,y]) + (model.Params.COALVOPEX[c] * obj.coalGen[c,y])
+            ccost_h += (model.Params.COALFOPEX[c,y] * model.Params.COALCAP[c] * obj.coalOnline[c,y]) + (model.Params.COALVOPEX[c,y] * obj.coalGen[c,y])
 
             for r in range(reSites.shape[0]):
-                if obj.reCap[r,c,y]>0:
+                if NEW_reCap[r,c,y]>0:
                     reOnline.append(1)
                 else:
                     reOnline.append(0)
-                reOM_cost.append(model.Params.REVOPEX[r,y] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]) # MV 9/17/2021
-                reOM_Jobs.append(model.Params.REOMEF[r,y]*obj.reCap[r,c,y]) # MV 9/17/2021
-                reInvest.append(obj.capInvest[r,c,y])
-                reCons_cost.append(model.Params.RECAPEX[r,y] * obj.capInvest[r,c,y]) # MV 9/17/2021
-                reCons_Jobs.append(model.Params.CONEF[r,y]*obj.capInvest[r,c,y]) # MV 9/17/2021
-                cpInvest.append(obj.capInvest[r,c,y])
-                totReCap.append(obj.reCap[r,c,y])
-                renGenrn.append(obj.reGen[r,c,y])
+                reOM_cost.append(model.Params.REVOPEX[r,y] * NEW_reGen[r,c,y] + model.Params.REFOPEX[r,y] * NEW_reCap[r,c,y]) # MV 9/17/2021
+                reOM_Jobs.append(model.Params.REOMEF[r,y]*NEW_reCap[r,c,y]) # MV 9/17/2021
+                reInvest.append(NEW_capInvest[r,c,y])
+                reCons_cost.append(model.Params.RECAPEX[r,y] * NEW_capInvest[r,c,y]) # MV 9/17/2021
+                reCons_Jobs.append(model.Params.CONEF[r,y]*NEW_capInvest[r,c,y]) # MV 9/17/2021
+                cpInvest.append(NEW_capInvest[r,c,y])
+                totReCap.append(NEW_reCap[r,c,y])
+                renGenrn.append(NEW_reGen[r,c,y])
                 yr.append(cYr)
                 cPlant.append(coalPlants.iloc[c,7])
                 Lat.append(reSites.iloc[r,0])
@@ -486,26 +555,26 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
                 CF.append(reSites.iloc[r,2])
                 elg.append(reSites.iloc[r,-1])
                 if reSites.iloc[r,3] =='s':
-                    sc_h += obj.reCap[r,c,y]
-                    sg_h += obj.reGen[r,c,y]
-                    sco_h += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
-                    som_h += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]
-                    scc_h += model.Params.RECAPEX[r,y] * obj.capInvest[r,c,y]
-                    scoo_h += model.Params.REVOPEX[r,y] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]
+                    sc_h += NEW_reCap[r,c,y]
+                    sg_h += NEW_reGen[r,c,y]
+                    sco_h += model.Params.CONEF[r,y]*NEW_capInvest[r,c,y]
+                    som_h += model.Params.REOMEF[r,y]*NEW_reCap[r,c,y]
+                    scc_h += model.Params.RECAPEX[r,y] * NEW_capInvest[r,c,y]
+                    scoo_h += model.Params.REVOPEX[r,y] * NEW_reGen[r,c,y] + model.Params.REFOPEX[r,y] * NEW_reCap[r,c,y]
                 if reSites.iloc[r,3] =='w':
-                    wc_h += obj.reCap[r,c,y]
-                    wg_h += obj.reGen[r,c,y]
-                    wco_h += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
-                    wom_h += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]
-                    wcc_h += model.Params.RECAPEX[r] * obj.capInvest[r,c,y]
-                    wcoo_h += model.Params.REVOPEX[r] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]
+                    wc_h += NEW_reCap[r,c,y]
+                    wg_h += NEW_reGen[r,c,y]
+                    wco_h += model.Params.CONEF[r,y]*NEW_capInvest[r,c,y]
+                    wom_h += model.Params.REOMEF[r,y]*NEW_reCap[r,c,y]
+                    wcc_h += model.Params.RECAPEX[r,y] * NEW_capInvest[r,c,y]
+                    wcoo_h += model.Params.REVOPEX[r,y] * NEW_reGen[r,c,y] + model.Params.REFOPEX[r,y] * NEW_reCap[r,c,y]
                 if reSites.iloc[r,3] =='smr':
-                    smrc_h += obj.reCap[r,c,y]
-                    smrg_h += obj.reGen[r,c,y]
-                    smrco_h += model.Params.CONEF[r,y]*obj.capInvest[r,c,y]
-                    smrom_h += model.Params.REOMEF[r,y]*obj.reCap[r,c,y]
-                    smrcc_h += model.Params.RECAPEX[r,y] * obj.capInvest[r,c,y]
-                    smrcoo_h += model.Params.REVOPEX[r,y] * obj.reGen[r,c,y] + model.Params.REFOPEX[r,y] * obj.reCap[r,c,y]
+                    smrc_h += NEW_reCap[r,c,y]
+                    smrg_h += NEW_reGen[r,c,y]
+                    smrco_h += model.Params.CONEF[r,y]*NEW_capInvest[r,c,y]
+                    smrom_h += model.Params.REOMEF[r,y]*NEW_reCap[r,c,y]
+                    smrcc_h += model.Params.RECAPEX[r,y] *NEW_capInvest[r,c,y]
+                    smrcoo_h += model.Params.REVOPEX[r,y] * NEW_reGen[r,c,y] + model.Params.REFOPEX[r,y] * NEW_reCap[r,c,y]
         yrCoalGen.append(cg_h)
         yrCoalCap.append(cc_h)
         yrCoalOM.append(com_h)
@@ -544,7 +613,7 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
     
     reData.loc[reData['Invested MW']>0].to_csv('.'.join(list(map(str,scenario)))+'_'+'_'.join(region)+'_'+str(SMR_bool)+'_reData_FILTERED.csv')
 
-    Yearly = {'Year':yr2,'Yearly CO2 Limit':list(model.Params.CO2Limits),'CO2 Emissions (lb/yr)':list(np.sum(obj.CO2Emissions,axis=0)),'Coal Generation (MWh)':yrCoalGen,'Coal Capacity (MW)':yrCoalCap,'Coal O&M Jobs':yrCoalOM,'Coal O&M Cost':yrCoalCost,'Solar Capacity (MW)':yrSolarCap,'Solar Generation (MWh)':yrSolarGen,'Solar O&M Jobs':yrSolarOM,'Solar Construction Jobs':yrSolarCons,'Solar O&M Cost':yrSolarCost_om,'Solar Construction Cost':yrSolarCost_c,'Wind Capacity (MW)':yrWindCap,'Wind Generation (MWh)':yrWindGen,'Wind O&M Jobs':yrWindOM,'Wind Construction Jobs':yrWindCons,'Wind O&M Cost':yrWindCost_om,'Wind Construction Cost':yrWindCost_c,'SMR Capacity (MW)':yrSMRCap,'SMR Generation (MWh)':yrSMRGen,'SMR Construction Jobs':yrSMRCons,'SMR O&M Jobs':yrSMROM,'SMR O&M Cost':yrSMRCost_om,'SMR Construction Cost':yrSMRCost_c}
+    Yearly = {'Year':yr2,'Yearly CO2 Limit':list(model.Params.CO2Limits),'CO2 Emissions (USt/yr)':list(np.sum(obj.CO2Emissions,axis=0)),'Coal Generation (MWh)':yrCoalGen,'Coal Capacity (MW)':yrCoalCap,'Coal O&M Jobs':yrCoalOM,'Coal O&M Cost':yrCoalCost,'Solar Capacity (MW)':yrSolarCap,'Solar Generation (MWh)':yrSolarGen,'Solar O&M Jobs':yrSolarOM,'Solar Construction Jobs':yrSolarCons,'Solar O&M Cost':yrSolarCost_om,'Solar Construction Cost':yrSolarCost_c,'Wind Capacity (MW)':yrWindCap,'Wind Generation (MWh)':yrWindGen,'Wind O&M Jobs':yrWindOM,'Wind Construction Jobs':yrWindCons,'Wind O&M Cost':yrWindCost_om,'Wind Construction Cost':yrWindCost_c,'SMR Capacity (MW)':yrSMRCap,'SMR Generation (MWh)':yrSMRGen,'SMR Construction Jobs':yrSMRCons,'SMR O&M Jobs':yrSMROM,'SMR O&M Cost':yrSMRCost_om,'SMR Construction Cost':yrSMRCost_c}
     #,'CO2 Emissions (lb/yr)':np.sum(obj.CO2Emissions,axis=0)
     
     Sum_Data = pd.DataFrame(Yearly)
@@ -593,10 +662,10 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
         ).add_to(elSitesFG)
     elSitesFG.add_to(m)
 
-    # locate where RE Investments happened in year 2020
+    # locate where RE Investments happened in year 2020+numYears
     reInvestFG = folium.FeatureGroup(name='Sites w/ Investments',show=False)
     marker_cluster = MarkerCluster().add_to(reInvestFG)
-    df = reData.loc[(reData['Investment']==1) & (reData['Year']==2020)]
+    df = reData.loc[(reData['Investment']==1) & (reData['Year']==2020+numYears)]
     for c in range(df.shape[0]):
         popText = str(df.iloc[c,1])+str(df.iloc[c,2])+', Type:'+str(df.iloc[c,3])\
         +', '+str(df.iloc[c,8])+' MW'
@@ -612,7 +681,7 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
     # locate online RE plants in year 2020
     onlineFG = folium.FeatureGroup(name='Sites online 2020',show=False)
     marker_cluster = MarkerCluster().add_to(onlineFG)
-    df = reData.loc[(reData['Online']==1) & (reData['Year']==2020)]
+    df = reData.loc[(reData['Online']==1) & (reData['Year']==2020+numYears)]
     for c in range(df.shape[0]):
         popText = str(df.iloc[c,1])+str(df.iloc[c,2])+', Type:'+str(df.iloc[c,3])\
         +', '+str(df.iloc[c,8])+' MW'
@@ -628,7 +697,7 @@ def PostProcess(obj,model,numYears,region,coalPlants,reSites,scenario, SMR_bool,
     # locate where RE Investments happened in year 2020
     validInvFG = folium.FeatureGroup(name='0+ MW RE capacity',show=False)
     marker_cluster = MarkerCluster().add_to(validInvFG)
-    df = reData.loc[(reData['Investment']==1) & (reData['Year']==2020) & (reData['Invested MW']!=0)]
+    df = reData.loc[(reData['Investment']==1) & (reData['Year']==2020+numYears) & (reData['Invested MW']!=0)]
     for c in range(df.shape[0]):
         popText = str(df.iloc[c,1])+str(df.iloc[c,2])+', Type:'+str(df.iloc[c,3])\
         +', '+str(df.iloc[c,8])+' MW'

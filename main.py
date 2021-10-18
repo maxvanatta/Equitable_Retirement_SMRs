@@ -73,13 +73,21 @@ else:
         
 scenarios = OL.InitialValues(a_steps = int(import_CSV['Value'][10]),b_steps = int(import_CSV['Value'][10]),g_steps = int(import_CSV['Value'][10]))
 
-CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants, mCapDF,coalPlants,folderName = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,SMR_Values, solFileName, winFileName,getNewEFs = import_CSV['Value'][5],SMROnly = SMRONLY, Nation = cont)
+CONEF, REOMEF, EFType, MAXCAP,SITEMAXCAP,reSites,plants, mCapDF,coalPlants,folderName, RED_indexes,MASK, REV_INDS = OL.PrepareModel(numYears,region,threshDist,SMR_bool,DiscRate,SMR_Values, solFileName, winFileName,getNewEFs = import_CSV['Value'][5],SMROnly = SMRONLY, Nation = cont)
 
 if import_CSV['Value'][8] == 'TRUE':
     scen = []
     for s in import_CSV['Value'][9].split('_'):
         scen.append(float(s))
-    obj, model = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMR_Values)
+    obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_Values[0],SMR_Values[1],SMR_Values[2],RED_indexes,MASK,REV_INDS ,CO2Limits = 'Linear2030')
+
+    NEW_RES = OL.SummarizeResults(obj, plants2, model, scen, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMR_Values, prints = True)
+
+    OL.PostProcess(obj,model,numYears,region,coalPlants,reSites,scen, SMR_bool,folderName,NEW_RES)
 else:
     for scen in scenarios:
-        obj, model = OL.SingleModel(scen,numYears,solFileName,winFileName,region,CONEF,REOMEF,EFType,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,coalPlants,threshDist,folderName,DiscRate, SMR_Values)
+        obj, plants2, model = test_cplex(scen[0],scen[1],scen[2],numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_Values[0],SMR_Values[1],SMR_Values[2],RED_indexes,MASK,REV_INDS ,CO2Limits = 'Linear2030')
+
+        NEW_RES = OL.SummarizeResults(obj, plants2, model, scen, region, threshDist,SMR_bool, reSites, numYears,folderName,DiscRate,EFType,SMR_Values, prints = True)
+
+        OL.PostProcess(obj,model,numYears,region,coalPlants,reSites,scen, SMR_bool,folderName,NEW_RES)
