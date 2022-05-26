@@ -41,6 +41,7 @@ class EquitableRetirement:
             self.MASK = None
             self.RED_INDEXES = None
             self.REV_INDS = None
+            self.CAPEX_Multipliers = None
     
     # List of decision variables that we care about
     class Output:
@@ -149,6 +150,7 @@ class EquitableRetirement:
         model.MASK = pe.Param(model.C,model.R_RED,initialize=a2d(self.Params.MASK,self.C,self.R_RED),doc="Masking for the reduced sets")
         model.RED_INDEXES = pe.Param(model.C,model.R_RED,initialize=a2d(self.Params.RED_INDEXES,self.C,self.R_RED),doc="O&M EF for RE plants jobs/MW")
         model.REV_INDS = pe.Param(model.R,model.C,initialize=a2d(self.Params.REV_INDS,self.R,self.C), doc = "Reverse index for finding the individual generation from each site in the reduced sets, particularly for the SiteMaxCap")
+        model.CAPEX_Multipliers = pe.Param(model.R, initialize=a2d(self.Params.CAPEX_Multipliers,self.R),doc = "Geographic capex multipliers")
         
         model.ONES = pe.Param(model.R,initialize=a2d(np.ones(self.NUM_RE),self.R),doc="Just ones")
         
@@ -157,7 +159,7 @@ class EquitableRetirement:
         model.capInvest = pe.Var(model.R_RED,model.C,model.Y,within=pe.NonNegativeReals, doc = "Capacity to be invested in that renewable plant to replace coal")   # For each Y, for each C, for each R there is a capInvest decision variable.
         model.capRetire = pe.Var(model.C,model.Y,within=pe.NonNegativeReals,doc = "amount of capacity to be retired for each coal plant")
         model.reGen = pe.Var(model.R_RED,model.C,model.Y,within=pe.NonNegativeReals, doc = "RE generation at each plant")
-        model.coalGen = pe.Var(model.C,model.Y,within=pe.NonNegativeReals, doc = "Coal generation for each plant")
+        #model.coalGen = pe.Var(model.C,model.Y,within=pe.NonNegativeReals, doc = "Coal generation for each plant")
         model.reCap = pe.Var(model.R_RED,model.C,model.Y,within=pe.NonNegativeReals, doc = "Capacity size for each RE plant")
         model.reInvest = pe.Var(model.R_RED,model.C,model.Y,within=pe.Binary, doc = "Binary variable to invest in RE to replace coal")
         model.coalRetire = pe.Var(model.C,model.Y,within=pe.Binary, doc = "Binary variable to retire coal plant")
@@ -173,13 +175,14 @@ class EquitableRetirement:
         # objective: Combination of parameters and variables over sets.
         def SystemCosts(model):
             return sum(sum(model.COALFOPEX[c,y] * model.COALCAP[c] * model.coalOnline[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
-                + sum(sum(model.COALVOPEX[c,y] * model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(model.COALVOPEX[c,y] * model.coalOnline[c,y]*model.HISTGEN[c] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
                 + sum(sum(sum(model.REFOPEX[(model.RED_INDEXES[c,r]),y] * model.reCap[r,c,y] for r in model.R_RED) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
-                + sum(sum(sum(model.RECAPEX[(model.RED_INDEXES[c,r]),y] * model.capInvest[r,c,y] for r in model.R_RED) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
+                + sum(sum(sum(model.RECAPEX[(model.RED_INDEXES[c,r]),y]* model.CAPEX_Multipliers[(model.RED_INDEXES[c,r])] * model.capInvest[r,c,y] for r in model.R_RED) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
                 + sum(sum(sum(model.REVOPEX[(model.RED_INDEXES[c,r]),y] * model.reGen[r,c,y] for r in model.R_RED) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
+	#sum(sum(sum(model.RECAPEX[(model.RED_INDEXES[c,r]),y] * model.CAPEX_Multipliers[(model.RED_INDEXES[c,r])] * model.capInvest[r,c,y] for r in model.R_RED) for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y) \
 
         def HealthCosts(model):
-            return sum(sum(model.HD[c]*model.coalGen[c,y] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
+            return sum(sum(model.HD[c]*model.coalOnline[c,y]*model.HISTGEN[c] for c in model.C)/((1+DiscRate)**(y-2020)) for y in model.Y)
 
         
         def Z(model):
@@ -189,7 +192,7 @@ class EquitableRetirement:
         # constraints
        
         def CO2EmissionsRule(model,c,y):
-            return model.CO2ME[c]*model.coalGen[c,y] == model.CO2Emissions[c,y]
+            return model.CO2ME[c]*model.coalOnline[c,y]*model.HISTGEN[c] == model.CO2Emissions[c,y]
         model.CO2EmissionsRule = pe.Constraint(model.C,model.Y, rule = CO2EmissionsRule, doc = "CO2 total emissions per plant must be equal to the emission rate multiplied by the generation")
         
         def CO2ReductionRule(model,y):
@@ -203,19 +206,20 @@ class EquitableRetirement:
         '''
         
         def JobsConserveRuleLower(model,c,y):
-            return model.COALOMEF[c]*(model.HISTGEN[c]-model.coalGen[c,y])*jobCoeff <= sum(model.REOMEF[(model.RED_INDEXES[c,r]),y]*model.reCap[r,c,y]+ model.CONEF[model.RED_INDEXES[c,r],y]*model.capInvest[r,c,y]for r in model.R_RED) #
+            return model.COALOMEF[c]*(model.HISTGEN[c]-model.coalOnline[c,y]*model.HISTGEN[c])*jobCoeff <= sum(model.REOMEF[(model.RED_INDEXES[c,r]),y]*model.reCap[r,c,y]+ model.CONEF[model.RED_INDEXES[c,r],y]*model.capInvest[r,c,y]for r in model.R_RED) #
         model.JobsConserveRuleLower = pe.Constraint(model.C,model.Y, rule=JobsConserveRuleLower,doc = 'Conserve jobs within a range for updated formulation 9/27/2021')
 
+        '''
         def coalGenRule(model,c,y):
             return model.coalGen[c,y] == model.HISTGEN[c]*model.coalOnline[c,y]
         model.coalGenRule = pe.Constraint(model.C,model.Y,rule=coalGenRule, doc='Coal generation must equal historical generation * whether that plant is online')
-        
+        '''
         def balanceGenRule(model,c,y):
-            return sum(model.reGen[r,c,y] for r in model.R_RED) >= model.HISTGEN[c]-model.coalGen[c,y] # changed to >= to reflect formulation and jobs constraint
+            return sum(model.reGen[r,c,y] for r in model.R_RED) >= model.HISTGEN[c]-model.coalOnline[c,y]*model.HISTGEN[c] # changed to >= to reflect formulation and jobs constraint
         model.balanceGenRule = pe.Constraint(model.C,model.Y,rule=balanceGenRule, doc = "RE generation for each coal location must equal retired capacity")
         ''''''
         def reGenRule(model,r,c,y):
-            return model.reGen[r,c,y] == model.CF[model.RED_INDEXES[c,r]]*model.reCap[r,c,y]*8760 # changed to equality based on conversation to test: MV 08102021 # changed to <= to reflect formulation changes 9/27/2021
+            return model.reGen[r,c,y] <= model.CF[model.RED_INDEXES[c,r]]*model.reCap[r,c,y]*8760 # changed to equality based on conversation to test: MV 08102021 # changed to <= to reflect formulation changes 9/27/2021
         model.reGenRule = pe.Constraint(model.R_RED,model.C,model.Y,rule=reGenRule, doc='RE generation must be less than or equal to capacity factor* chosen capacity *8760')
         
         
@@ -242,10 +246,10 @@ class EquitableRetirement:
             return model.reInvest[r,c,y] == (model.reOnline[r,c,y] - model.reOnline[r,c,y-1])
         model.reInvestRule = pe.Constraint(model.R_RED,model.C,model.Y,rule=reInvestRule,doc= "Decision to invest in RE is current year - prior")
         
-        ### Remove
-        def reInvestLimit(model,c,y):
-            return sum(model.reInvest[r,c,y] for r in model.R_RED) <= sum(model.MAXSITES[c] * model.coalRetire[c,y] for r in model.R_RED)
-        model.reInvestLimit = pe.Constraint(model.C,model.Y,rule=reInvestLimit,doc = "Number of new RE sites must be less than or equal to max RE sites for that coal plant * whether we retire")
+        ### Remove - Currently not enforced- 1000s of sites avaialble.
+        #def reInvestLimit(model,c,y):
+        #    return sum(model.reInvest[r,c,y] for r in model.R_RED) <= sum(model.MAXSITES[c] * model.coalRetire[c,y] for r in model.R_RED)
+        #model.reInvestLimit = pe.Constraint(model.C,model.Y,rule=reInvestLimit,doc = "Number of new RE sites must be less than or equal to max RE sites for that coal plant * whether we retire")
         
         def coalRetireRule(model,c,y):
             if y == model.Y[1]:
@@ -262,10 +266,11 @@ class EquitableRetirement:
         model.coalRetireRuleYr1 = pe.Constraint(model.C,model.Y,rule=coalRetireRuleYr1, doc = "Coal remains on during year 2020")
         
         
-        def capInvestLimit(model,r,c,y):
-            return model.capInvest[r,c,y] <= model.MAXCAP[model.RED_INDEXES[c,r],c]*model.MASK[c,r]#model.reInvest[r,c,y]#- model.reCap[r,c,y-1] # adjusted to ensure multiple build years doesn't exceed the limits of the site MV 10/02/2021
-        model.capInvestLimit = pe.Constraint(model.R_RED,model.C,model.Y,rule=capInvestLimit, doc = "RE capacity to invest must be less than or equal to max cap of site, if we invest")
-               
+           
+        def capDistLimit(model,r,c,y):
+            return model.capInvest[r,c,y] <= model.SITEMAXCAP[r]*model.MASK[c,r]
+        model.capDistLimit = pe.Constraint(model.R_RED,model.C,model.Y,rule=capDistLimit, doc = "RE capacity to invest must be less than or equal to max cap of site, if we invest")
+         
         
         #model.coalRetire.pprint()
         #model.coalGen.pprint()
@@ -273,7 +278,7 @@ class EquitableRetirement:
         
         self.model = model
 
-    def solve(self,alpha,beta,gamma,DiscRate,jobCoeff, solver='glpk'):
+    def solve(self,alpha,beta,gamma,DiscRate,jobCoeff, filename, solver='glpk'):
         '''solve(self,alpha,beta,gamma):
         Solve the equitable retirement optimization problem. PRECONDITION: All sets and params have been initialized.
         '''
@@ -283,12 +288,9 @@ class EquitableRetirement:
         print('running ({},{},{})...'.format(alpha,beta,gamma))
         
         opt = pyomo.opt.SolverFactory(solver,tee = True)
-        
-        #opt.options['workmem'] = 512
-        #opt.options['parameters.mip.strategy.file'] = 2
-        
-        # Updated BR 6/21/21
-        res = opt.solve(self.model)
+        opt.options.mipgap = 0.03
+
+        res = opt.solve(self.model, tee = True, logfile=(filename+"/CPLEX_test.log"))
         
         # Added BR 6/21/21 http://www.pyomo.org/blog/2015/1/8/accessing-solver
         print('>>Solver status is {} and solver termination condition is {}'.format(res.solver.status,res.solver.termination_condition))
@@ -302,7 +304,7 @@ class EquitableRetirement:
         self.Output.capInvest = np.array([[[pe.value(self.model.capInvest[r,c,y]) for y in self.Y] for c in self.C] for r in self.R_RED])
         self.Output.capRetire = np.array([[pe.value(self.model.capRetire[c,y]) for y in self.Y] for c in self.C])
         self.Output.reGen = np.array([[[pe.value(self.model.reGen[r,c,y]) for y in self.Y] for c in self.C] for r in self.R_RED])
-        self.Output.coalGen = np.array([[pe.value(self.model.coalGen[c,y]) for y in self.Y] for c in self.C])
+        self.Output.coalGen = np.array([[pe.value(self.model.coalOnline[c,y])*pe.value(self.model.HISTGEN[c]) for y in self.Y] for c in self.C])    #model.coalOnline[c,y]*model.HISTGEN[c]
         self.Output.reCap = np.array([[[pe.value(self.model.reCap[r,c,y]) for y in self.Y] for c in self.C] for r in self.R_RED])
         self.Output.reInvest = np.array([[[pe.value(self.model.reInvest[r,c,y]) for y in self.Y] for c in self.C] for r in self.R_RED])
         self.Output.coalRetire = np.array([[pe.value(self.model.coalRetire[c,y]) for y in self.Y] for c in self.C])

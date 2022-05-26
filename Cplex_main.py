@@ -15,7 +15,7 @@ import pandas as pd
 
 
 
-def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_CAPEX, SMR_FOPEX, SMR_VOPEX,RED_indexes,MASK, REV_INDS, CO2Limits= 'Linear2030', jobCoeff = 1.0, RE_Case = 'Moderate'):
+def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,MAXCAP,SITEMAXCAP,reSites,plants,SMR_bool,DiscRate, SMR_CAPEX, SMR_FOPEX, SMR_VOPEX,RED_indexes,MASK, REV_INDS,NREL_CAPEX ,filename,CO2Limits= 'Linear2030', jobCoeff = 1.0, RE_Case = 'Moderate'):
     ''' use sample data to test runtime and large-scale functionality of formulation '''
     print('TEST_CPLEX:')
     print('\t','getting data...')
@@ -124,7 +124,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     ef = { 'RETEF' : np.ones(len(plants))*1.65,
            'CONEF' : CONEF,
            'COALOMEF' : np.ones(len(plants))* (plants['Coal Capacity (MW)'].values*0.14/plants['HISTGEN'].values), 
-           'REOMEF' : REOMEF/30
+           'REOMEF' : REOMEF
          }
     
     ### BUILD MODEL
@@ -161,7 +161,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
 
     
     m.Params.COALCAP = plants['Coal Capacity (MW)'].values
-    m.Params.CF = reSites['Annual CF'].values * reSites['Eligible']
+    m.Params.CF = reSites['CF'].values * reSites['Eligible']
     m.Params.RECAPEX = costs['RECAPEX']
     m.Params.REFOPEX = costs['REFOPEX']
     m.Params.REVOPEX = costs['REVOPEX']
@@ -181,6 +181,8 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     m.Params.RED_INDEXES = RED_indexes
     m.Params.MASK = MASK
     m.Params.REV_INDS = REV_INDS
+    
+    m.Params.CAPEX_Multipliers = NREL_CAPEX['CAPEX_Mult'].tolist()
     
 
     '''
@@ -210,7 +212,7 @@ def test_cplex(alp,bet,gam,numYears,solFileName,winFileName,region,CONEF,REOMEF,
     '''
     print('\t','solving...')
     
-    m.solve(alp,bet,gam,DiscRate,jobCoeff,solver='cplex')
+    m.solve(alp,bet,gam,DiscRate,jobCoeff,filename,solver='cplex')
 
     print('\t',m.Output.Z)
     
