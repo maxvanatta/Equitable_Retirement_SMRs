@@ -34,7 +34,7 @@ else:
 
 # How many years will the analysis run for?
 numYears = int(import_CSV['Value'][1])
-numYears = 12
+#numYears = 12
 
 # Region of coal plants under analysis
 if import_CSV['Value'][2] == 'MidA':
